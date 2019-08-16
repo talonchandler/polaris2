@@ -2,12 +2,12 @@ import vtk
 from vtk.util import numpy_support
 from scipy.spatial import ConvexHull
 import numpy as np
-from polaris2.geomvis import util
+from polaris2.geomvis import util, gaunt
 import logging
 log = logging.getLogger('log')
 
 class Jeven:
-    def __init__(self, data, xlabel='', title='', N=2**14):
+    def __init__(self, data, xlabel='', title='', N=2**14, lmax=None):
                  
         self.data = np.array(data)
         self.N = N # points on the sphere
@@ -19,8 +19,15 @@ class Jeven:
         # Setup renderer
         self.ren, self.renWin, self.iren = util.setup_render()
 
-        # Calculate band dimensions
-        self.lmax, mm = util.j2lm(self.data.shape[0] - 1)
+        # # Calculate band dimensions
+        # self.lmax, mm = util.j2lm(self.data.shape[0] - 1)
+        # self.J = util.maxl2maxj(self.lmax)
+
+        # Calculate dimensions
+        if lmax is None:
+            self.lmax, mm = util.j2lm(len(self.data) - 1)
+        else:
+            self.lmax = lmax
         self.J = util.maxl2maxj(self.lmax)
 
         # Fill the rest of the last l band with zeros
@@ -41,8 +48,25 @@ class Jeven:
         self.B = B
         self.Binv = np.linalg.pinv(self.B, rcond=1e-15)
 
-    def build_actors(self):
+    def __mul__(self, other):
+        result = np.einsum('ijk,j,k->i', self.G, self.data, other.data)
+        return Jeven(result)
 
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def precompute_tripling(self):
+        Jout = util.maxl2maxj(2*self.lmax)
+        self.G = np.zeros((Jout, self.J, self.J))
+        for j in range(Jout):
+            for jp in range(self.J):
+                for jpp in range(self.J):
+                    l, m = util.j2lm(j)
+                    lp, mp = util.j2lm(jp)
+                    lpp, mpp = util.j2lm(jpp)
+                    self.G[j,jp,jpp] = gaunt.gauntR(l,lp,lpp,m,mp,mpp)
+
+    def build_actors(self):
         # Calculate positive and negative lobes
         radii = np.einsum('ij,i->j', self.Binv, self.data)
         pradii = radii.clip(min=0)
