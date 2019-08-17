@@ -1,5 +1,5 @@
 import numpy as np
-from polaris2.geomvis import R2toR, R2toC2, R3S2toR, util
+from polaris2.geomvis import R2toR, R2toC2, R3S2toR
 
 # Simulates a linear dipole imaged by 4f detection system.
 class FourF:

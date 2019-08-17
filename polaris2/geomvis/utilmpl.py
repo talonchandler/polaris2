@@ -1,4 +1,3 @@
-from scipy.special import sph_harm
 import subprocess
 import os
 import matplotlib as mpl
@@ -147,58 +146,3 @@ def c2rgb(z, rmin=0, rmax=1, hue_start=0):
     v = (amp -rmin) / (rmax - rmin)
     return mpl.colors.hsv_to_rgb(np.dstack((h,s,v)))
 
-# SciPy real spherical harmonics with identical interface to SymPy's Znm
-# Useful for fast numerical evaluation of Znm
-def spZnm(l, m, theta, phi):
-    if m > 0:
-        return np.sqrt(2)*((-1)**m)*np.real(sph_harm(m, l, phi, theta))
-    elif m == 0:
-        return np.real(sph_harm(m, l, phi, theta))
-    elif m < 0:
-        return np.sqrt(2)*((-1)**m)*np.imag(sph_harm(np.abs(m), l, phi, theta))
-
-# Convert between spherical harmonic indices (l, m) and multi-index (j)
-def j2lm(j):
-    if j < 0:
-        return None
-    l = 0
-    while True:
-        x = 0.5*l*(l+1)
-        if abs(j - x) <= l:
-            return l, int(j-x)
-        else:
-            l = l+2
-
-def lm2j(l, m):
-    if abs(m) > l or l%2 == 1:
-        return None
-    else:
-        return int(0.5*l*(l+1) + m)
-
-def maxl2maxj(l):
-    return int(0.5*(l + 1)*(l + 2))
-
-# Convert between Cartesian and spherical coordinates
-def tp2xyz(tp):
-    theta = tp[0]
-    phi = tp[1]
-    return np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)
-
-def xyz2tp(x, y, z):
-    arccos_arg = z/np.sqrt(x**2 + y**2 + z**2)
-    if np.isclose(arccos_arg, 1.0): # Avoid arccos floating point issues
-        arccos_arg = 1.0
-    elif np.isclose(arccos_arg, -1.0):
-        arccos_arg = -1.0
-    return np.arccos(arccos_arg), np.arctan2(y, x)
-
-# Returns "equally" spaced points on a unit sphere in spherical coordinates.
-# http://stackoverflow.com/a/26127012/5854689
-def fibonacci_sphere(n, xyz=False):
-    z = np.linspace(1 - 1/n, -1 + 1/n, num=n) 
-    theta = np.arccos(z)
-    phi = np.mod((np.pi*(3.0 - np.sqrt(5.0)))*np.arange(n), 2*np.pi) - np.pi
-    if xyz:
-        return np.vstack((np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta))).T
-    else:
-        return np.vstack((theta, phi)).T

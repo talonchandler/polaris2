@@ -1,5 +1,5 @@
 import numpy as np
-from polaris2.geomvis import util
+from polaris2.geomvis import utilmpl
 
 class xyz:
     def __init__(self, data, vmin=0, vmax=None, xlabel='', title=''):
@@ -11,6 +11,6 @@ class xyz:
         self.title = title        
 
     def plot(self, f, fc):
-        ax0, ax1, axs3 = util.plot_template(f, fc, shape=self.data.shape,
+        ax0, ax1, axs3 = utilmpl.plot_template(f, fc, shape=self.data.shape,
                                             xlabel=self.xlabel,
                                             title=self.title)

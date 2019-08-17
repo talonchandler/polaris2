@@ -1,5 +1,5 @@
 from tqdm import tqdm
-from polaris2.geomvis import R3S2toR, R2toR, S2toR, util
+from polaris2.geomvis import R3S2toR, R2toR, S2toR, utilmpl
 from polaris2.micro.micro import det
 
 dip = R3S2toR.xyzj_list([[0,0,1,0,0,0]], shape=[10,10,4],
@@ -23,6 +23,7 @@ for el in ell:
 
 N = 100
 for i in tqdm(range(N)):
-    util.plot([ell], './out/out'+str(i)+'.png')
+    istr = '{:03d}'.format(i)
+    utilmpl.plot([ell], './out/'+istr+'.png')
     for el in ell:
         el.increment_camera(360/N)

@@ -1,6 +1,6 @@
 import tifffile
 import numpy as np
-from polaris2.geomvis import util
+from polaris2.geomvis import utilmpl
 import logging
 log = logging.getLogger('log')
 
@@ -19,12 +19,12 @@ class xy:
         self.plotfov = plotfov
 
     def save_tiff(self, filename='sh.tif'):
-        util.mkdir(filename)
+        utilmpl.mkdir(filename)
         with tifffile.TiffWriter(filename, imagej=True) as tif:
             tif.save(self.data.astype(np.float32)) # TZCYXS
 
     def plot(self, f, fc):
-        ax = util.plot_template(f, fc, shape=self.data.shape, xlabel=self.xlabel,
+        ax = utilmpl.plot_template(f, fc, shape=self.data.shape, xlabel=self.xlabel,
                                 title=self.title)
 
         # Image

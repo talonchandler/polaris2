@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 from polaris2.micro.micro import det
-from polaris2.geomvis import R3S2toR, util
+from polaris2.geomvis import R3S2toR, utilmpl
 import logging
 log = logging.getLogger('log')
 
@@ -29,4 +29,4 @@ for i in tqdm(range(N)):
     im2.data /= 100
 
     # im1.save_tiff('./out2/'+istr+'.tif')
-    util.plot([[obj, im2, im1]], './out/'+istr+'.png')
+    utilmpl.plot([[obj, im2, im1]], './out/'+istr+'.png')

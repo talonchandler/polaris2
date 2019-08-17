@@ -1,8 +1,10 @@
 # VTK utilities
 import vtk
-from vtk.util.numpy_support import vtk_to_numpy
+from vtk.util import numpy_support
+
 import numpy as np
-from polaris2.geomvis import util
+from scipy.spatial import ConvexHull
+from polaris2.geomvis import utilsh
 
 # Setup vtk render and renderwindow
 def setup_render(size=2000):
@@ -35,7 +37,7 @@ def vtk2imshow(renWin, ax):
     im = image_filter.GetOutput()
     rows, cols, _ = im.GetDimensions()
     sc = im.GetPointData().GetScalars()
-    a = vtk_to_numpy(sc)
+    a = numpy_support.vtk_to_numpy(sc)
     a = a.reshape(rows, cols, -1)
     ax.imshow(a, origin='lower')
 
@@ -115,7 +117,7 @@ def draw_double_arrow(ren, x, y, z, sx, sy, sz):
         arrowa.GetProperty().SetColor([.5,.5,.5])
         arrowa.SetScale(1)
 
-        tp = util.xyz2tp(sx, sy, sz)
+        tp = utilsh.xyz2tp(sx, sy, sz)
         arrowa.RotateWXYZ(-90, 0, 1, 0) # Align with Z axis
         arrowa.RotateWXYZ(np.rad2deg(tp[0]), 0, 1, 0)
         arrowa.RotateWXYZ(np.rad2deg(tp[1]), 0, 0, 1)
@@ -125,3 +127,55 @@ def draw_double_arrow(ren, x, y, z, sx, sy, sz):
             arrowa.RotateZ(180)
 
         ren.AddActor(arrowa)
+
+def draw_sphere_function(ren, xyz, pradii, nradii):
+    # Plot each lobe
+    for i, radii in enumerate([pradii, nradii]):
+        all_xyz = np.einsum('i,ij->ij', radii, xyz)
+
+        ch = ConvexHull(xyz)
+        all_faces = []
+        all_faces.append(ch.simplices)
+
+        all_xyz = np.ascontiguousarray(all_xyz)
+        all_xyz_vtk = numpy_support.numpy_to_vtk(all_xyz, deep=True)
+
+        all_faces = np.concatenate(all_faces)
+        all_faces = np.hstack((3 * np.ones((len(all_faces), 1)), all_faces))
+
+        ncells = len(all_faces)
+        all_faces = np.ascontiguousarray(all_faces.ravel(), dtype='i8')
+        all_faces_vtk = numpy_support.numpy_to_vtkIdTypeArray(all_faces, deep=True)
+
+        points = vtk.vtkPoints()
+        points.SetData(all_xyz_vtk)
+
+        cells = vtk.vtkCellArray()
+        cells.SetCells(ncells, all_faces_vtk)
+
+        polydata = vtk.vtkPolyData()
+        polydata.SetPoints(points)
+        polydata.SetPolys(cells)
+
+        # TODO: Generalize colormaps
+        cols = 255*np.ones((xyz.shape[0], 3))
+        if i == 0:
+            cols[:,1] = 255*(1-radii/np.max(radii))
+            cols[:,2] = 255*(1-radii/np.max(radii))
+        else:
+            cols[:,0] = 255*(1-radii/np.max(radii))
+            cols[:,1] = 255*(1-radii/np.max(radii))
+        vtk_colors = numpy_support.numpy_to_vtk(cols, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
+        polydata.GetPointData().SetScalars(vtk_colors)
+
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputData(polydata)
+
+        # Create actor
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+
+        # Color the actor
+        colors = vtk.vtkNamedColors()
+
+        ren.AddActor(actor)

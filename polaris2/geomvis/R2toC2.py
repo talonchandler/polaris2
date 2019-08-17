@@ -1,6 +1,6 @@
 import matplotlib as mpl
 import numpy as np
-from polaris2.geomvis import util
+from polaris2.geomvis import utilmpl
 from matplotlib.transforms import Bbox
 
 # Model R2toC2 in the most general case
@@ -25,7 +25,7 @@ class xy:
     def plot(self, f, fc):
 
         # Use for placing the title
-        axs = util.plot_template(f, fc, title=self.title, scale_bar=False)
+        axs = utilmpl.plot_template(f, fc, title=self.title, scale_bar=False)
         axs[0].axis('off')
         axs[1].axis('off')
         
@@ -62,7 +62,7 @@ class xy:
         x = np.linspace(-1, 1, 100)
         y = np.linspace(-1, 1, 100)
         xx, yy = np.meshgrid(x, y)
-        im = axc.imshow(util.c2rgb(xx + 1j*yy), interpolation='bicubic', extent=[-1,1,-1,1], origin='lower')
+        im = axc.imshow(utilmpl.c2rgb(xx + 1j*yy), interpolation='bicubic', extent=[-1,1,-1,1], origin='lower')
         axc.axis('off')
         patch = mpl.patches.Circle((0,0), radius=1, linewidth=0.5, facecolor='none',
                                    edgecolor='k', transform=axc.transData, clip_on=False)
@@ -81,7 +81,7 @@ class xy:
         for i, ax in enumerate([axt, axb]):
             ax.set_xlim(self.plotfov)
             ax.set_ylim(self.plotfov)
-            im = ax.imshow(util.c2rgb(self.data[:,:,i], rmax=self.colormax), interpolation='nearest',
+            im = ax.imshow(utilmpl.c2rgb(self.data[:,:,i], rmax=self.colormax), interpolation='nearest',
                            extent=2*self.fov, origin='lower')
             if self.circle:
                 ax.axis('off')
