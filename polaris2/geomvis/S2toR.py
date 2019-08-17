@@ -19,10 +19,6 @@ class Jeven:
         # Setup renderer
         self.ren, self.renWin, self.iren = util.setup_render()
 
-        # # Calculate band dimensions
-        # self.lmax, mm = util.j2lm(self.data.shape[0] - 1)
-        # self.J = util.maxl2maxj(self.lmax)
-
         # Calculate dimensions
         if lmax is None:
             self.lmax, mm = util.j2lm(len(self.data) - 1)
@@ -124,11 +120,6 @@ class Jeven:
 
             self.ren.AddActor(self.actor)
 
-        # Set cameras
-        self.ren.GetActiveCamera().SetPosition([1,1,1])
-        self.ren.GetActiveCamera().SetViewUp([0,0,1])
-        self.ren.ResetCamera()
-
         # Make orientation axes
         axes1 = util.make_axes()
         self.om1 = vtk.vtkOrientationMarkerWidget()
@@ -136,6 +127,11 @@ class Jeven:
         self.om1.SetViewport(0, -0.125, 0.375, 0.25)
         self.om1.SetInteractor(self.iren)
         self.om1.EnabledOn()
+
+        # Set cameras
+        self.ren.GetActiveCamera().SetPosition([1,1,1])
+        self.ren.GetActiveCamera().SetViewUp([0,0,1])
+        self.ren.ResetCamera()
 
     def increment_camera(self, az):
         self.ren.GetActiveCamera().Azimuth(az)

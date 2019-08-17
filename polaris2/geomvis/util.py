@@ -1,5 +1,3 @@
-import vtk
-from vtk.util.numpy_support import vtk_to_numpy
 from scipy.special import sph_harm
 import subprocess
 import os
@@ -34,7 +32,7 @@ def plot(input_objects, output_file='output.pdf', dpi=300):
 
 # Plot template for 2D and 3D matplotlib geometries
 def plot_template(f, fc, shape=(1,1), xlabel='', ylabel='', clabel='', title='',
-                  scale_bar=True):
+                  scale_bar=True, bump=1.0):
     # Subfigure coords
     fx, fy, fw, fh = fc
 
@@ -61,8 +59,11 @@ def plot_template(f, fc, shape=(1,1), xlabel='', ylabel='', clabel='', title='',
         w = wnom*xlen/ylen
         h = hnom
 
+    w = w*bump
+    h = h*bump
+        
     # Center coordinates
-    cx = fx + 0.425*fw
+    cx = fx + 0.425*fw*bump
     cy = fy + 0.5*fh
 
     # Color bar spacing
@@ -106,14 +107,15 @@ def plot_template(f, fc, shape=(1,1), xlabel='', ylabel='', clabel='', title='',
     ax1.tick_params(axis='y', which='both', right=True, left=False, labelleft=False, labelright=True)
 
     # Scale bar on x axis
-    if scale_bar:
-        scale_shift = 0.05*fh
-        if len(shape) == 2:
+    scale_shift = 0.05*fh
+    if len(shape) == 2:
+        if scale_bar:
             ax0.annotate('', xy=(cx-w,cy-h-scale_shift), xytext=(cx+w, cy-h-scale_shift), xycoords='figure fraction', textcoords='figure fraction', va='center', arrowprops=dict(arrowstyle="|-|, widthA=0.5, widthB=0.5", shrinkA=0, shrinkB = 0, lw=.75))
-            ax0.annotate(xlabel, xy=(1,1), xytext=(cx,cy-h-0.1*fh), textcoords='figure fraction', ha='center', va='center', rotation=0)
-        elif len(shape) == 3:
-            ax0.annotate('', xy=(acx+sw,cy-h-scale_shift), xytext=(cx+w, cy-h-scale_shift), xycoords='figure fraction', textcoords='figure fraction', va='center', arrowprops=dict(arrowstyle="|-|, widthA=0.5, widthB=0.5", shrinkA=0, shrinkB = 0, lw=.75))            
-            ax0.annotate(xlabel, xy=(1,1), xytext=(acx + (cx+w - acx)/2,cy-h-0.1*fh), textcoords='figure fraction', ha='center', va='center', rotation=0)
+        ax0.annotate(xlabel, xy=(1,1), xytext=(cx, fy + 0.03*fh), textcoords='figure fraction', ha='center', va='center', rotation=0, zorder=10)
+    elif len(shape) == 3:
+        if scale_bar:
+            ax0.annotate('', xy=(acx+sw,cy-h-scale_shift), xytext=(cx+w, cy-h-scale_shift), xycoords='figure fraction', textcoords='figure fraction', va='center', arrowprops=dict(arrowstyle="|-|, widthA=0.5, widthB=0.5", shrinkA=0, shrinkB = 0, lw=.75))
+        ax0.annotate(xlabel, xy=(1,1), xytext=(acx + (cx+w - acx)/2,cy-h-0.1*fh), textcoords='figure fraction', ha='center', va='center', rotation=0)
 
     # Labels
     ax0.annotate(title, xy=(1,1), xytext=(cx,cy+hnom+0.05*fh), textcoords='figure fraction', ha='center', va='center')
@@ -144,54 +146,6 @@ def c2rgb(z, rmin=0, rmax=1, hue_start=0):
     s = 0.85 * np.ones_like(h)
     v = (amp -rmin) / (rmax - rmin)
     return mpl.colors.hsv_to_rgb(np.dstack((h,s,v)))
-
-# Setup vtk render and renderwindow
-def setup_render(size=2000):
-    ren = vtk.vtkRenderer()
-    renWin = vtk.vtkRenderWindow()
-    renWin.AddRenderer(ren)
-    renWin.SetSize(size, size)
-    ren.SetBackground([255,255,255])
-    renWin.OffScreenRenderingOff()
-    iren = vtk.vtkRenderWindowInteractor()
-    iren.SetRenderWindow(renWin)
-
-    return ren, renWin, iren
-
-# Plots a vtk renderWindow and in a matplotlib axis with imshow
-def vtk2imshow(renWin, ax):
-    # Render
-    renWin.OffScreenRenderingOn()
-    renWin.Render()
-
-    # Filter renWin
-    image_filter = vtk.vtkWindowToImageFilter()
-    image_filter.SetInput(renWin)
-    image_filter.SetScale(1)
-    image_filter.SetInputBufferTypeToRGB()
-    image_filter.ReadFrontBufferOff()
-    image_filter.Update()
-
-    # Convert to numpy array 
-    im = image_filter.GetOutput()
-    rows, cols, _ = im.GetDimensions()
-    sc = im.GetPointData().GetScalars()
-    a = vtk_to_numpy(sc)
-    a = a.reshape(rows, cols, -1)
-    ax.imshow(a, origin='lower')
-
-# Make axes acotr for vtk plotting
-def make_axes():
-    axes = vtk.vtkAxesActor()
-    axes.SetShaftTypeToCylinder()
-    axes.SetXAxisLabelText('')
-    axes.SetYAxisLabelText('')
-    axes.SetZAxisLabelText('')
-    axes.SetTotalLength(1.5, 1.5, 1.5)
-    axes.SetCylinderRadius(0.75 * axes.GetCylinderRadius())
-    axes.SetConeRadius(1.5 * axes.GetConeRadius())
-    axes.SetSphereRadius(1.5 * axes.GetSphereRadius())
-    return axes
 
 # SciPy real spherical harmonics with identical interface to SymPy's Znm
 # Useful for fast numerical evaluation of Znm

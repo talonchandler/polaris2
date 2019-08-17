@@ -5,7 +5,7 @@ from polaris2.geomvis import R2toR, R2toC2, R3S2toR, util
 class FourF:
 
     def __init__(self, NA=1.4, M=63, n0=1.5, lamb=0.546, wpx_real=7.4,
-                 npx=(7*17, 7*17), ss=3, plotfov=10):
+                 npx=(7*17, 7*17), ss=3, plotfov=10, irrad_title='4$f$ detector irradiance'):
         # Input parameters
         self.NA = NA
         self.M = M # magnification
@@ -17,6 +17,7 @@ class FourF:
 
         # Plotting parameters
         self.plotfov = plotfov # detctor region plotted
+        self.irrad_title = irrad_title
         
         # Derived parameters
         self.npxss = npx[0]*ss
@@ -129,7 +130,7 @@ class FourF:
 
         # Return 
         return R2toR.xy(irrpx, 
-                        title='Detector plane irradiance',
+                        title=self.irrad_title,
                         fov=[-self.fov/2, self.fov/2],
                         plotfov=[-self.plotfov/2, self.plotfov/2],
                         xlabel=str(self.plotfov)+' $\mu$m')
@@ -139,13 +140,14 @@ class FourF:
 class FourFLF:
 
     def __init__(self, fulen=2500, ulenpx=(2**4 + 1),
-                 ulens_aperture='square', **kwargs):
+                 ulens_aperture='square',
+                 **kwargs):
         
         self.fourf = FourF(**kwargs)
         self.fulen = fulen # ulens focal length        
         self.ulenpx = ulenpx # number of pixels behind each ulens
         self.ulens_aperture = ulens_aperture # 'square' or 'circle'
-        
+
     # Generates detector fields (after microlenses) due to a single dipole
     # Input: R3S2toR.xyzj_list with a single entry
     # Output: R2toR.xy object
@@ -178,10 +180,10 @@ class FourFLF:
         ifft2 = np.fft.ifftshift(np.fft.ifft2(filtered, axes=(0,1)), axes=(0,1))
 
         edet = R2toC2.xy(ifft2,
-                        fov=[-self.fourf.fov/2, self.fourf.fov/2],
-                        plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
-                        title='Detector plane fields',
-                        xlabel=str(self.fourf.plotfov)+' $\mu$m',
-                        toplabel='$E_x$', bottomlabel='$E_y$')
+                         fov=[-self.fourf.fov/2, self.fourf.fov/2],
+                         plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
+                         title='Lightfield detector fields',
+                         xlabel=str(self.fourf.plotfov)+' $\mu$m',
+                         toplabel='$E_x$', bottomlabel='$E_y$')
 
         return self.fourf.e_to_i(edet)

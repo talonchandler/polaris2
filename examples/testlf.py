@@ -16,10 +16,11 @@ for i in tqdm(range(N)):
 
     istr = '{:03d}'.format(i)
     xp, yp, zp = sphere_spiral(i/(N-1))
-    obj = R3S2toR.xyzj_list([[0,0,-2+4*i/N,0,0,0]], shape=[10,10,4],
-                            xlabel='10 $\mu$m', title='Single dipole radiator')
+    obj = R3S2toR.xyzj_list([[0,0,1,xp,yp,zp]], shape=[10,10,4],
+                            xlabel='10$\\times$10$\\times$4 $\mu$m${}^3$', title='Single dipole radiator')
+    obj.build_actors()
 
-    d1 = det.FourFLF(ulens_aperture='square')
+    d1 = det.FourFLF(ulens_aperture='square', irrad_title='Lightfield detector irradiance')
     im1 = d1.dip_to_det(obj)
     im1.data /= 100
 

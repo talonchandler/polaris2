@@ -1,5 +1,7 @@
+import vtk
+from vtk.util import numpy_support
 import numpy as np
-from polaris2.geomvis import util
+from polaris2.geomvis import utilv, util
 
 # List of single dipoles in [[x,y,z,sx,sy,sz]] form. 
 class xyzj_list:
@@ -13,33 +15,34 @@ class xyzj_list:
         self.xlabel = xlabel
         self.title = title
 
-    def plot(self, f, fc):
-        ax0, ax1, axs3 = util.plot_template(f, fc, shape=self.shape,
-                                            xlabel=self.xlabel,
-                                            title=self.title)
+        # Setup renderer
+        self.ren, self.renWin, self.iren = utilv.setup_render()
 
-        ax1.axis('off')
-        for ax in axs3:
-            ax.plot(0,0, 'xk', markersize=2, color='k') # Plot origin markers
-            ax.axis('off')
-
-        # Set data limits
-        xs, ys, zs = self.shape
-        axs3[0].set_xlim([-xs/2,xs/2])
-        axs3[0].set_ylim([-ys/2,ys/2])
-        axs3[1].set_xlim([-xs/2,xs/2])
-        axs3[1].set_ylim([-zs/2,zs/2])
-        axs3[2].set_xlim([-zs/2,zs/2])
-        axs3[2].set_ylim([-ys/2,ys/2])
-            
-        # Plot dipoles
+    def build_actors(self):
+        # Add double arrows for dipoles
         for dipole in self.data:
-            r = 0.1*np.max(self.shape)
-            x, y, z, sx, sy, sz = dipole
-            axs3[0].annotate('', xy=(x-r*sx,y-r*sy), xytext=(x+r*sx,y+r*sy), arrowprops=dict(arrowstyle="<|-|>", shrinkA=0, shrinkB=0, lw=0.5, facecolor='k'))
-            axs3[1].annotate('', xy=(x-r*sx,z-r*sz), xytext=(x+r*sx,z+r*sz), arrowprops=dict(arrowstyle="<|-|>", shrinkA=0, shrinkB=0, lw=0.5, facecolor='k'))
-            axs3[2].annotate('', xy=(z-r*sz,y-r*sy), xytext=(z+r*sz,y+r*sy), arrowprops=dict(arrowstyle="<|-|>", shrinkA=0, shrinkB=0, lw=0.5, facecolor='k'))
-            
-            axs3[0].plot(x, y, 'xk', markersize=2)
-            axs3[1].plot(x, z, 'xk', markersize=2)
-            axs3[2].plot(z, y, 'xk', markersize=2) 
+            utilv.draw_double_arrow(self.ren, *dipole) 
+        utilv.draw_origin_dot(self.ren)
+        utilv.draw_outer_box(self.ren, *self.shape)
+        utilv.draw_axes(self.ren, *self.shape)
+        
+        # Set cameras
+        self.ren.GetActiveCamera().SetPosition([1,-1,1])
+        self.ren.GetActiveCamera().SetViewUp([0,0,1])
+        self.ren.ResetCamera()
+
+    def increment_camera(self, az):
+        self.ren.GetActiveCamera().Azimuth(az)
+
+    def plot(self, f, fc):
+        ax = util.plot_template(f, fc, xlabel=self.xlabel, title=self.title,
+                                scale_bar=False, bump=1.2)
+
+        # Plot to axis
+        utilv.vtk2imshow(self.renWin, ax[0])
+        
+        # Turn off axis outline
+        ax[0].axis('off')
+        
+        # Colorbar off
+        ax[1].axis('off')

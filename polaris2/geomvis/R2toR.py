@@ -51,3 +51,7 @@ class xy:
         ax[1].annotate('0', xy=(0,0), xytext=(1.8, 0), textcoords='axes fraction', va='center', ha='left')        
         ax[1].yaxis.set_ticks([0, vmax])
         ax[1].set_yticklabels(['', ''])
+
+        # Colors
+        ax[0].annotate('', xy=(0,0), xytext=(0.1, 0), xycoords='axes fraction', textcoords='axes fraction', arrowprops=dict(arrowstyle="-", lw=2, shrinkB=0, color='red'))
+        ax[0].annotate('', xy=(0,0), xytext=(0, 0.1), xycoords='axes fraction', textcoords='axes fraction', arrowprops=dict(arrowstyle="-", lw=2, shrinkB=0, color=[0,1,0]))
