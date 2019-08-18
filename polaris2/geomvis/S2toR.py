@@ -49,9 +49,8 @@ class Jeven:
         self.G = utilsh.G_real_mult_tensor(Jout, self.J)
     
     def build_actors(self):
-        
         # Calculate positive and negative lobes
-        radii = np.einsum('ij,i->j', self.Binv, self.data)
+        radii = np.einsum('ij,j->i', self.B, self.data[-1])
         pradii = radii.clip(min=0)
         nradii = -radii.clip(max=0)
 
@@ -97,7 +96,8 @@ class Jeven:
         ax[1].yaxis.set_ticks([vmin, vmax])
         ax[1].set_yticklabels(['', ''])
 
-# For possible interactive resurrection later
+# Interactivity code
+# For possible resurrection later
 #     def interact(self):
 #         self.build_actors()
 

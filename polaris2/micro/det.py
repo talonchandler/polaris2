@@ -42,7 +42,7 @@ class FourF:
     # Based on: Backer, A. S., & Moerner, W. E. (2014)
     # http://dx.doi.org/10.1021/jp501778z
     def dip_to_ebfp(self, dip):
-        rx, ry, rz, sx, sy, sz = dip.data[0]
+        rx, ry, rz, sx, sy, sz = dip.data
 
         # Coordinates
         if self.npxss % 2 == 0:

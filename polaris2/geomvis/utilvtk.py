@@ -131,8 +131,8 @@ def draw_double_arrow(ren, x, y, z, sx, sy, sz):
 def draw_sphere_function(ren, xyz, pradii, nradii):
     # Plot each lobe
     for i, radii in enumerate([pradii, nradii]):
-        all_xyz = np.einsum('i,ij->ij', radii, xyz)
-
+        all_xyz = np.einsum('i,ij->ij', radii, xyz)        
+        
         ch = ConvexHull(xyz)
         all_faces = []
         all_faces.append(ch.simplices)

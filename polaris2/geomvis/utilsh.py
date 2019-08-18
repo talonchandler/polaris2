@@ -62,7 +62,6 @@ def fibonacci_sphere(n, xyz=False):
 
 # Calculate matrix that converts from N-point ODF to J-component SH coeffs
 def calcB(N, J):
-    xyz = fibonacci_sphere(N, xyz=True)
     tp = fibonacci_sphere(N)
     B = np.zeros((N, J))
     for (n, j), x in np.ndenumerate(B):
