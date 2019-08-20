@@ -3,8 +3,10 @@ from vtk.util import numpy_support
 import numpy as np
 from polaris2.geomvis import utilmpl, utilvtk, utilsh
 
-# Single dipole in [x0,y0,z0,sx0,sy0,sz0] form. 
-# Distribution of dipole in [x0,y0,z0,[j0, j1, ..., jN]] form.
+# Single dipole in [x0,y0,z0,sx0,sy0,sz0] form or
+# distribution of dipoles in [x0,y0,z0,[j0, j1, ..., jN]] form
+# where sx0,sy0,sz0 are on the units sphere and [j0,...,jN] are radii at
+# the fibonacci_sphere points. 
 class xyzj_single:
     def __init__(self, data, shape=[10,10,2.5], xlabel='', title=''):
         self.data = data
@@ -26,16 +28,16 @@ class xyzj_single:
             xyz = utilsh.fibonacci_sphere(radii.shape[0], xyz=True)
             pradii = radii.clip(min=0)/np.max(np.abs(radii))
             nradii = -radii.clip(max=0)/np.max(np.abs(radii))
-            utilvtk.draw_sphere_function(self.ren, xyz, pradii, nradii)
+            utilvtk.draw_sphere_function(self.ren, xyz, np.array(self.data[0:3]), pradii, nradii)
         
         utilvtk.draw_origin_dot(self.ren)
         utilvtk.draw_outer_box(self.ren, *self.shape)
         utilvtk.draw_axes(self.ren, *self.shape)
         
         # Set cameras
-        self.ren.GetActiveCamera().SetPosition([1,-1,1])
+        dist = 1.1*np.linalg.norm(self.shape)
+        self.ren.GetActiveCamera().SetPosition(np.array([1,-1,1])*dist)
         self.ren.GetActiveCamera().SetViewUp([0,0,1])
-        self.ren.ResetCamera()
 
     def increment_camera(self, az):
         self.ren.GetActiveCamera().Azimuth(az)
@@ -58,7 +60,8 @@ class xyzj_single:
                            shape=self.shape, xlabel=self.xlabel, title=self.title)
 
 # Dipole distribution at a single position in the form
-# [x0,y0,z0,[J0, J1, ..., JN]
+# [x0,y0,z0,[J0, J1, ..., JN] where [J0, ..., JN] are even spherical harmonic
+# coefficients. 
 class xyzJ_single:
     def __init__(self, data, shape=[10,10,4], N=2**12, xlabel='', title=''):
         self.data = data
@@ -86,14 +89,13 @@ class xyzJ_single:
         # Calc points for spherical plotting
         self.xyz = utilsh.fibonacci_sphere(N, xyz=True)
         self.B = utilsh.calcB(self.N, self.J)
-        self.Binv = np.linalg.pinv(self.B, rcond=1e-15)
 
     def build_actors(self):
         # Calculate positive and negative lobes
         radii = np.einsum('ij,j->i', self.B, self.data[-1])
         pradii = radii.clip(min=0)/np.max(np.abs(radii))
         nradii = -radii.clip(max=0)/np.max(np.abs(radii))
-        utilvtk.draw_sphere_function(self.ren, self.xyz, pradii, nradii)
+        utilvtk.draw_sphere_function(self.ren, self.xyz, np.array(self.data[0:3]), pradii, nradii)
 
         # Draw extras
         utilvtk.draw_origin_dot(self.ren)
@@ -101,9 +103,9 @@ class xyzJ_single:
         utilvtk.draw_axes(self.ren, *self.shape)
         
         # Set cameras
-        self.ren.GetActiveCamera().SetPosition([1,-1,1])
+        dist = 1.1*np.linalg.norm(self.shape)
+        self.ren.GetActiveCamera().SetPosition(np.array([1,-1,1])*dist)
         self.ren.GetActiveCamera().SetViewUp([0,0,1])
-        self.ren.ResetCamera()
 
     def increment_camera(self, az):
         self.ren.GetActiveCamera().Azimuth(az)

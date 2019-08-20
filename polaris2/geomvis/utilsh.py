@@ -51,8 +51,11 @@ def xyz2tp(x, y, z):
 
 # Returns "equally" spaced points on a unit sphere in spherical coordinates.
 # http://stackoverflow.com/a/26127012/5854689
-def fibonacci_sphere(n, xyz=False):
-    z = np.linspace(1 - 1/n, -1 + 1/n, num=n) 
+def fibonacci_sphere(n, xyz=False, pole=True):
+    if pole:
+        z = np.linspace(1, -1, num=n)
+    else:
+        z = np.linspace(1 - 1/n, -1 + 1/n, num=n) 
     theta = np.arccos(z)
     phi = np.mod((np.pi*(3.0 - np.sqrt(5.0)))*np.arange(n), 2*np.pi) - np.pi
     if xyz:
@@ -132,7 +135,7 @@ def gauntR(l1, l2, l3, m1, m2, m3, evaluate=True):
     else:
         return result
 
-# Calculate the Gaunt coefficient tensor for multiplying real SH coeffs
+# Calculate the Gaunt coefficient tensor for multiplying real even SH coeffs
 def G_real_mult_tensor(Jout, Jin):
     G = np.zeros((Jout, Jin, Jin))
     for j in range(Jout):
@@ -142,4 +145,16 @@ def G_real_mult_tensor(Jout, Jin):
                 lp, mp = j2lm(jp)
                 lpp, mpp = j2lm(jpp)
                 G[j,jp,jpp] = gauntR(l,lp,lpp,m,mp,mpp)
+    return G
+
+
+# Compute Gaunt coefficient tensor for multiplying real SH coeffs in l=1 band
+def gaunt_l1l1_tol0l2():
+    xyz2m = [-1,1,0]
+    G = np.zeros((6, 3, 3))
+    for i in range(6):
+        for j in range(3):
+            for k in range(3):
+                l, m = j2lm(i)
+                G[i,j,k] = gauntR(l,1,1,m,xyz2m[j],xyz2m[k])
     return G

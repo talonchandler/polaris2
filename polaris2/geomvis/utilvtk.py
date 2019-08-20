@@ -128,10 +128,10 @@ def draw_double_arrow(ren, x, y, z, sx, sy, sz):
 
         ren.AddActor(arrowa)
 
-def draw_sphere_function(ren, xyz, pradii, nradii):
+def draw_sphere_function(ren, xyz, center, pradii, nradii):
     # Plot each lobe
     for i, radii in enumerate([pradii, nradii]):
-        all_xyz = np.einsum('i,ij->ij', radii, xyz)        
+        all_xyz = np.einsum('i,ij->ij', radii, xyz) + center
         
         ch = ConvexHull(xyz)
         all_faces = []
@@ -160,11 +160,11 @@ def draw_sphere_function(ren, xyz, pradii, nradii):
         # TODO: Generalize colormaps
         cols = 255*np.ones((xyz.shape[0], 3))
         if i == 0:
-            cols[:,1] = 255*(1-radii/np.max(radii))
-            cols[:,2] = 255*(1-radii/np.max(radii))
+            cols[:,1] = 255*(1-radii/(np.max(radii) + 1e-5))
+            cols[:,2] = 255*(1-radii/(np.max(radii) + 1e-5))
         else:
-            cols[:,0] = 255*(1-radii/np.max(radii))
-            cols[:,1] = 255*(1-radii/np.max(radii))
+            cols[:,0] = 255*(1-radii/(np.max(radii) + 1e-5))
+            cols[:,1] = 255*(1-radii/(np.max(radii) + 1e-5))
         vtk_colors = numpy_support.numpy_to_vtk(cols, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
         polydata.GetPointData().SetScalars(vtk_colors)
 
