@@ -104,7 +104,7 @@ def draw_origin_dot(ren):
     dota.GetProperty().SetColor([0,0,0])
     ren.AddActor(dota)
 
-def draw_double_arrow(ren, x, y, z, sx, sy, sz):
+def draw_double_arrow(ren, pos, direction):
     for i in range(2):
         arrow = vtk.vtkArrowSource()
         arrow.SetTipResolution(50)
@@ -117,54 +117,73 @@ def draw_double_arrow(ren, x, y, z, sx, sy, sz):
         arrowa.GetProperty().SetColor([.5,.5,.5])
         arrowa.SetScale(1)
 
-        tp = utilsh.xyz2tp(sx, sy, sz)
+        tp = utilsh.xyz2tp(*direction)
         arrowa.RotateWXYZ(-90, 0, 1, 0) # Align with Z axis
         arrowa.RotateWXYZ(np.rad2deg(tp[0]), 0, 1, 0)
         arrowa.RotateWXYZ(np.rad2deg(tp[1]), 0, 0, 1)
-        arrowa.SetPosition(x, y, z)
+        arrowa.SetPosition(*pos)
         if i == 1:
             arrowa.RotateX(180)
             arrowa.RotateZ(180)
 
         ren.AddActor(arrowa)
-
-def draw_sphere_function(ren, xyz, center, pradii, nradii):
-    # Plot each lobe
-    for i, radii in enumerate([pradii, nradii]):
-        all_xyz = np.einsum('i,ij->ij', radii, xyz) + center
         
-        ch = ConvexHull(xyz)
+# centers.shape = (M, 3)
+# radii.shape = (M, N)
+# M = number of ODFs and N = number of points on the sphere to plot
+def draw_sphere_field(ren, centers, radii, plot_negative=True):
+    M = radii.shape[0]
+    N = radii.shape[1]
+    vertices = utilsh.fibonacci_sphere(radii.shape[-1], xyz=True)
+    faces = ConvexHull(vertices).simplices
+
+    # Split into positive and negative
+    if plot_negative:
+        iradiis = [radii.clip(min=0), -radii.clip(max=0)]
+    else:
+        iradiis = [radii.clip(min=0)]
+
+    # For both positive and negative
+    for i, iradii in enumerate(iradiis):
+        
+        # Calculate vertices
+        xyz_vertices = np.einsum('ij,ki->ikj', vertices, iradii) + centers
+        all_xyz = xyz_vertices.reshape(-1, xyz_vertices.shape[-1], order='F') # Reshape
+        all_xyz_vtk = numpy_support.numpy_to_vtk(all_xyz, deep=True) # Convert to vtk
+
+        # Calculate faces
         all_faces = []
-        all_faces.append(ch.simplices)
-
-        all_xyz = np.ascontiguousarray(all_xyz)
-        all_xyz_vtk = numpy_support.numpy_to_vtk(all_xyz, deep=True)
-
+        for j in range(M):
+            all_faces.append(faces + j*N)
         all_faces = np.concatenate(all_faces)
         all_faces = np.hstack((3 * np.ones((len(all_faces), 1)), all_faces))
-
-        ncells = len(all_faces)
         all_faces = np.ascontiguousarray(all_faces.ravel(), dtype='i8')
         all_faces_vtk = numpy_support.numpy_to_vtkIdTypeArray(all_faces, deep=True)
 
+        # Populate points
         points = vtk.vtkPoints()
         points.SetData(all_xyz_vtk)
-
+        
+        # Calculate cells
+        ncells = len(all_faces)
         cells = vtk.vtkCellArray()
         cells.SetCells(ncells, all_faces_vtk)
 
+        # Populate polydata
         polydata = vtk.vtkPolyData()
         polydata.SetPoints(points)
         polydata.SetPolys(cells)
 
+        # Calculate colors        
         # TODO: Generalize colormaps
-        cols = 255*np.ones((xyz.shape[0], 3))
+        cols = 255*np.ones(all_xyz.shape)
+        iradiif = radii.flatten()
         if i == 0:
-            cols[:,1] = 255*(1-radii/(np.max(radii) + 1e-5))
-            cols[:,2] = 255*(1-radii/(np.max(radii) + 1e-5))
+            cols[:,1] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
+            cols[:,2] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
         else:
-            cols[:,0] = 255*(1-radii/(np.max(radii) + 1e-5))
-            cols[:,1] = 255*(1-radii/(np.max(radii) + 1e-5))
+            cols[:,0] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
+            cols[:,1] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
         vtk_colors = numpy_support.numpy_to_vtk(cols, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
         polydata.GetPointData().SetScalars(vtk_colors)
 
@@ -174,8 +193,5 @@ def draw_sphere_function(ren, xyz, center, pradii, nradii):
         # Create actor
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
-
-        # Color the actor
-        colors = vtk.vtkNamedColors()
 
         ren.AddActor(actor)

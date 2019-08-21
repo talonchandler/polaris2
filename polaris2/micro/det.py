@@ -182,12 +182,11 @@ class FourF:
         return self.xye_to_xy_det(eim)
 
     # Generates the irradiance pattern due to a single dipole distribution
-    # Input: R3S2toR.xyzJ_single
+    # Input: R3S2toR.xyzJ_list with single entry
     # Output: R2toR.xy object
     def xyzJ_single_to_xy_det(self, dist):
-        rx, ry, rz, J = dist.data 
-        self.precompute_xyzJ_single_to_xy_det([rx, ry, rz])
-        out = np.einsum('ijk,k->ij', self.h_xyzJ_single_to_xy_det, dist.data[-1])
+        self.precompute_xyzJ_single_to_xy_det(dist.data_xyz[0])
+        out = np.einsum('ijk,k->ij', self.h_xyzJ_single_to_xy_det, dist.data_J[0])
 
         return R2toR.xy(out, 
                         title=self.irrad_title,
@@ -210,6 +209,21 @@ class FourF:
 
         # Downsample and store
         self.h_xyzJ_single_to_xy_det = out.reshape(self.npx[0], self.ss, self.npx[1], self.ss, 6).sum(axis=(1,3))
+
+    # Generates the irradiance pattern due to several dipole distributions
+    # This is a slow path for dense objects.
+    # Input: R3S2toR.xyzJ_list
+    # Output: R2toR.xy object
+    def xyzJ_list_to_xy_det(self, dist):
+        out = np.zeros(self.npx)
+        for m in range(dist.M):
+            distm = R3S2toR.xyzJ_list([dist.data_xyz[m]], [dist.data_J[m]])
+            out += self.xyzJ_single_to_xy_det(distm).data
+        return R2toR.xy(out, 
+                        title=self.irrad_title,
+                        fov=[-self.fov/2, self.fov/2],
+                        plotfov=[-self.plotfov/2, self.plotfov/2],
+                        xlabel=str(self.plotfov)+' $\mu$m')
     
 # Simulates a linear dipole imaged by 4f system with a microlens array. 
 # Depends on FourF class.
@@ -290,12 +304,11 @@ class FourFLF:
         return self.fourf.xye_to_xy_det(edet)
 
     # Generates the irradiance pattern due to a single dipole distribution
-    # Input: R3S2toR.xyzJ_single
+    # Input: R3S2toR.xyzJ_list with a single entry
     # Output: R2toR.xy object
     def xyzJ_single_to_xy_det(self, dist):
-        rx, ry, rz, J = dist.data 
-        self.precompute_xyzJ_single_to_xy_det([rx, ry, rz])
-        out = np.einsum('ijk,k->ij', self.h_xyzJ_single_to_xy_det, dist.data[-1])
+        self.precompute_xyzJ_single_to_xy_det(dist.data_xyz[0])
+        out = np.einsum('ijk,k->ij', self.h_xyzJ_single_to_xy_det, dist.data_J[0])
 
         return R2toR.xy(out, 
                         title='Lightfield detector irradiance',
@@ -318,3 +331,19 @@ class FourFLF:
 
         # Downsample and store
         self.h_xyzJ_single_to_xy_det = out.reshape(self.fourf.npx[0], self.fourf.ss, self.fourf.npx[1], self.fourf.ss, 6).sum(axis=(1,3))
+
+    # Generates the irradiance pattern due to several dipole distributions
+    # This is a slow path for dense objects.
+    # Input: R3S2toR.xyzJ_list
+    # Output: R2toR.xy object
+    def xyzJ_list_to_xy_det(self, dist):
+        out = np.zeros(self.fourf.npx)
+        for m in range(dist.M):
+            distm = R3S2toR.xyzJ_list([dist.data_xyz[m]], [dist.data_J[m]])
+            out += self.xyzJ_single_to_xy_det(distm).data
+        return R2toR.xy(out, 
+                        title=self.fourf.irrad_title,
+                        fov=[-self.fourf.fov/2, self.fourf.fov/2],
+                        plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
+                        xlabel=str(self.fourf.plotfov)+' $\mu$m')
+        

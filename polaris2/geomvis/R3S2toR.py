@@ -5,13 +5,18 @@ from polaris2.geomvis import utilmpl, utilvtk, utilsh
 import logging
 log = logging.getLogger('log')
 
-# Single dipole in [x0,y0,z0,sx0,sy0,sz0] form or
-# distribution of dipoles in [x0,y0,z0,[j0, j1, ..., jN]] form
-# where sx0,sy0,sz0 are on the units sphere and [j0,...,jN] are radii at
-# the fibonacci_sphere points. 
-class xyzj_single:
-    def __init__(self, data, shape=[10,10,2.5], xlabel='', title=''):
-        self.data = data
+# List of dipoles
+# List of positions in data_xyz = [[x0,y0,z0],...,[xN,yN,zN] form
+# List of radii in data_j = [[j0,...,jM]_0,...,[j0,...,jM]_N] form where
+# the each entry is the radius at a fibonacci_sphere point.
+#
+# Single directions can be data_j = [[sx0,sy0,sz0],...,[sxN,syN,szN]] form.
+class xyzj_list:
+    def __init__(self, data_xyz, data_j, shape=[10,10,2.5], xlabel='', title=''):
+        
+        self.data_xyz = np.array(data_xyz)
+        self.data_j = np.array(data_j)
+        self.M = self.data_xyz.shape[0] 
         self.shape = shape # um
 
         self.xlabel = xlabel
@@ -22,16 +27,14 @@ class xyzj_single:
 
     def build_actors(self):
         # Add double arrows for single dipole
-        if len(self.data) == 6:
-            utilvtk.draw_double_arrow(self.ren, *self.data)
+        if self.data_j.shape[1] == 3:
+            for i in range(self.M):
+                utilvtk.draw_double_arrow(self.ren, self.data_xyz[i], self.data_j[i])
         # Add spherical function for ensemble
         else:
-            radii = self.data[-1]
-            xyz = utilsh.fibonacci_sphere(radii.shape[0], xyz=True)
-            pradii = radii.clip(min=0)/np.max(np.abs(radii))
-            nradii = -radii.clip(max=0)/np.max(np.abs(radii))
-            utilvtk.draw_sphere_function(self.ren, xyz, np.array(self.data[0:3]), pradii, nradii)
-        
+            utilvtk.draw_sphere_field(self.ren, self.data_xyz, self.data_j)
+
+        # Draw extras
         utilvtk.draw_origin_dot(self.ren)
         utilvtk.draw_outer_box(self.ren, *self.shape)
         utilvtk.draw_axes(self.ren, *self.shape)
@@ -52,21 +55,23 @@ class xyzj_single:
         ax[0].axis('off')
         ax[1].axis('off')
 
-    def to_xyzJ_single(self, lmax=4):
+    def to_xyzJ_list(self, lmax=4):
         # For ensembles only
-        N = self.data[-1].shape[0]
+        N = self.data_j.shape[-1]
         J = utilsh.maxl2maxj(lmax)
         B = utilsh.calcB(N, J)
-        dataJ = np.einsum('ij,i->j', B, self.data[-1])
-        return xyzJ_single([self.data[0], self.data[1], self.data[2], dataJ],
-                           shape=self.shape, xlabel=self.xlabel, title=self.title)
+        data_J = np.einsum('ij,ki->kj', B, self.data_j)
+        return xyzJ_list(self.data_xyz, data_J, shape=self.shape,
+                         xlabel=self.xlabel, title=self.title)
 
 # Dipole distribution at a single position in the form
 # [x0,y0,z0,[J0, J1, ..., JN] where [J0, ..., JN] are even spherical harmonic
 # coefficients. 
-class xyzJ_single:
-    def __init__(self, data, shape=[10,10,4], N=2**12, xlabel='', title=''):
-        self.data = data
+class xyzJ_list:
+    def __init__(self, data_xyz, data_J, shape=[10,10,4], N=2**12, xlabel='', title=''):
+        self.data_xyz = np.array(data_xyz)
+        self.data_J = np.array(data_J)
+        self.M = self.data_xyz.shape[0] 
         self.N = N
         self.shape = shape # um
 
@@ -77,28 +82,25 @@ class xyzJ_single:
         self.ren, self.renWin, self.iren = utilvtk.setup_render()
 
         # Calculate dimensions
-        self.lmax, mm = utilsh.j2lm(len(self.data[-1]) - 1)
+        self.lmax, mm = utilsh.j2lm(self.data_J.shape[-1] - 1)
         self.J = utilsh.maxl2maxj(self.lmax)
 
         # Fill the rest of the last l band with zeros
-        if len(self.data[-1]) != self.J:
+        if self.data_J.shape[-1] != self.J:
             temp = np.zeros(self.J)
-            temp[:len(self.data[-1])] = np.array(self.data[-1])
-            self.data[-1] = temp
-        else:
-            self.data[-1] = np.array(data[-1])
+            temp[:self.data_J.shape[-1]] = np.array(self.data_J)
+            self.data_J = temp
 
         # Calc points for spherical plotting
         self.xyz = utilsh.fibonacci_sphere(N, xyz=True)
         self.B = utilsh.calcB(self.N, self.J)
 
     def build_actors(self):
-        # Calculate positive and negative lobes
-        radii = np.einsum('ij,j->i', self.B, self.data[-1])
-        pradii = radii.clip(min=0)/np.max(np.abs(radii))
-        nradii = -radii.clip(max=0)/np.max(np.abs(radii))
-        utilvtk.draw_sphere_function(self.ren, self.xyz, np.array(self.data[0:3]), pradii, nradii)
-
+        # Plots spheres
+        radii = np.einsum('ij,kj->ki', self.B, self.data_J)
+        radii /= np.max(radii)
+        utilvtk.draw_sphere_field(self.ren, self.data_xyz, radii)
+        
         # Draw extras
         utilvtk.draw_origin_dot(self.ren)
         utilvtk.draw_outer_box(self.ren, *self.shape)
@@ -158,28 +160,15 @@ class xyzJ:
 
     def build_actors(self):
         mask = self.data[:,:,:,0] > 0
-        odf_ijk_list = np.array(np.nonzero(mask)).T
-        log.info('Plotting '+str(odf_ijk_list.shape[0])+' ODFs.')
+        ijk = np.array(np.nonzero(mask)).T
+        J_list = self.data[ijk[:,0], ijk[:,1], ijk[:,2], :]
         
-        # Plot each odf
-        for odf_ijk in odf_ijk_list:
-            J = self.data[odf_ijk[0], odf_ijk[1], odf_ijk[2], :]
-            # Calculate positive and negative lobes
-            radii = np.einsum('ij,j->i', self.B, J)
-            
-            # Scale input if too large
-            max_rad = np.max(radii)
-            if max_rad > self.max_in_rad:
-                radii *= self.max_in_rad/max_rad
-
-            # Scale output to maximum radius
-            radii *= self.max_out_rad/self.max_in_rad
-            
-            pradii = radii.clip(min=0)
-            nradii = -radii.clip(max=0)
-            
-            center = (odf_ijk - 0.5*self.npx)*self.vox_dims # ijk2xyz
-            utilvtk.draw_sphere_function(self.ren, self.xyz, center, pradii, nradii)
+        log.info('Plotting '+str(ijk.shape[0])+' ODFs.')
+        
+        # Draw odfs
+        centers = (ijk - 0.5*self.npx)*self.vox_dims # ijk2xyz
+        radii = np.einsum('ij,kj->ki', self.B, J_list) 
+        utilvtk.draw_sphere_field(self.ren, centers, radii)
 
         # Draw extras
         utilvtk.draw_outer_box(self.ren, *self.shape)
