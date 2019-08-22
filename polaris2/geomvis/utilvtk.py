@@ -7,11 +7,12 @@ from scipy.spatial import ConvexHull
 from polaris2.geomvis import utilsh
 
 # Setup vtk render and renderwindow
-def setup_render(size=2000):
+def setup_render():
     ren = vtk.vtkRenderer()
+    ren.UseFXAAOn() # anti-aliasing on
+    
     renWin = vtk.vtkRenderWindow()
     renWin.AddRenderer(ren)
-    renWin.SetSize(size, size)
     ren.SetBackground([255,255,255])
     renWin.OffScreenRenderingOff()
     iren = vtk.vtkRenderWindowInteractor()
@@ -20,9 +21,10 @@ def setup_render(size=2000):
     return ren, renWin, iren
 
 # Plots a vtk renderWindow and in a matplotlib axis with imshow
-def vtk2imshow(renWin, ax):
+def vtk2imshow(renWin, ax, ss=1):
     # Render
     renWin.OffScreenRenderingOn()
+    renWin.SetSize(1000*ss, 1000*ss)
     renWin.Render()
 
     # Filter renWin
@@ -41,7 +43,7 @@ def vtk2imshow(renWin, ax):
     a = a.reshape(rows, cols, -1)
     ax.imshow(a, origin='lower')
 
-# Make axes acotr for vtk plotting
+# Make axes actor for vtk plotting
 def make_axes():
     axes = vtk.vtkAxesActor()
     axes.SetShaftTypeToCylinder()
@@ -59,6 +61,7 @@ def draw_unlit_line(ren, x1, y1, z1, x2, y2, z2, color=[0,0,0], width=10):
     line.SetPoint1(x1,y1,z1)
     line.SetPoint2(x2,y2,z2)
 
+    # Create line mapper and actor
     linem = vtk.vtkPolyDataMapper()
     linem.SetInputConnection(line.GetOutputPort())
     linea = vtk.vtkActor()
@@ -66,7 +69,21 @@ def draw_unlit_line(ren, x1, y1, z1, x2, y2, z2, color=[0,0,0], width=10):
     linea.GetProperty().SetLineWidth(width)
     linea.GetProperty().SetColor(color)
     linea.GetProperty().SetLighting(0)
-    ren.AddActor(linea)
+
+    # Create tube mapper and actor (filtered line)
+    tubef = vtk.vtkTubeFilter()
+    tubef.SetInputConnection(line.GetOutputPort())
+    tubef.SetRadius(0.03)
+    tubef.SetNumberOfSides(50);
+    tubef.Update()
+
+    tubem = vtk.vtkPolyDataMapper()
+    tubem.SetInputConnection(tubef.GetOutputPort())
+    tubea = vtk.vtkActor()
+    tubea.SetMapper(tubem)
+    tubea.GetProperty().SetColor(color)
+    tubea.GetProperty().SetLighting(0)
+    ren.AddActor(tubea)
 
 def draw_axes(ren, x, y, z):
     dx = x/10
@@ -75,24 +92,29 @@ def draw_axes(ren, x, y, z):
     draw_unlit_line(ren,-x/2+zz,-y/2+zz,-z/2+zz, -x/2+zz,-y/2+dx+zz,-z/2+zz, color=[0,1,0], width=15)
     draw_unlit_line(ren,-x/2+zz,-y/2+zz,-z/2+zz, -x/2+zz,-y/2+zz,-z/2+dx+zz, color=[0,0,1], width=15)
 
-def draw_outer_box(ren, x, y, z):
+def draw_outer_box(ren, x, y, z, invert=False):
+    if invert:
+        color = [0.7, 0.7, 0.7]
+    else:
+        color = [0, 0, 0]
+    
     # Botton layer
-    draw_unlit_line(ren,-x/2,-y/2,-z/2, +x/2,-y/2,-z/2)
-    draw_unlit_line(ren,+x/2,-y/2,-z/2, +x/2,+y/2,-z/2)
-    draw_unlit_line(ren,+x/2,+y/2,-z/2, -x/2,+y/2,-z/2)
-    draw_unlit_line(ren,-x/2,+y/2,-z/2, -x/2,-y/2,-z/2)
+    draw_unlit_line(ren,-x/2,-y/2,-z/2, +x/2,-y/2,-z/2, color=color)
+    draw_unlit_line(ren,+x/2,-y/2,-z/2, +x/2,+y/2,-z/2, color=color)
+    draw_unlit_line(ren,+x/2,+y/2,-z/2, -x/2,+y/2,-z/2, color=color)
+    draw_unlit_line(ren,-x/2,+y/2,-z/2, -x/2,-y/2,-z/2, color=color)
 
     # Top layer
-    draw_unlit_line(ren,-x/2,-y/2,+z/2, +x/2,-y/2,+z/2)
-    draw_unlit_line(ren,+x/2,-y/2,+z/2, +x/2,+y/2,+z/2)
-    draw_unlit_line(ren,+x/2,+y/2,+z/2, -x/2,+y/2,+z/2)
-    draw_unlit_line(ren,-x/2,+y/2,+z/2, -x/2,-y/2,+z/2)
+    draw_unlit_line(ren,-x/2,-y/2,+z/2, +x/2,-y/2,+z/2, color=color)
+    draw_unlit_line(ren,+x/2,-y/2,+z/2, +x/2,+y/2,+z/2, color=color)
+    draw_unlit_line(ren,+x/2,+y/2,+z/2, -x/2,+y/2,+z/2, color=color)
+    draw_unlit_line(ren,-x/2,+y/2,+z/2, -x/2,-y/2,+z/2, color=color)
 
     # Sides
-    draw_unlit_line(ren,-x/2,-y/2,-z/2, -x/2,-y/2,+z/2)
-    draw_unlit_line(ren,+x/2,-y/2,-z/2, +x/2,-y/2,+z/2)
-    draw_unlit_line(ren,-x/2,+y/2,-z/2, -x/2,+y/2,+z/2)
-    draw_unlit_line(ren,+x/2,+y/2,-z/2, +x/2,+y/2,+z/2)
+    draw_unlit_line(ren,-x/2,-y/2,-z/2, -x/2,-y/2,+z/2, color=color)
+    draw_unlit_line(ren,+x/2,-y/2,-z/2, +x/2,-y/2,+z/2, color=color)
+    draw_unlit_line(ren,-x/2,+y/2,-z/2, -x/2,+y/2,+z/2, color=color)
+    draw_unlit_line(ren,+x/2,+y/2,-z/2, +x/2,+y/2,+z/2, color=color)
 
 def draw_origin_dot(ren):
     dot = vtk.vtkSphereSource()

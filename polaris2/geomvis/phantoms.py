@@ -43,25 +43,24 @@ def ellipsoid(pradii, paxes, N=2**12):
 # uniaxial radius r1
 # perpedicular radii r2
 # uniaxial direction v1 = [x1, y1, z1]
-def uniaxial_ellipsoid(r1, r2, v1):
+def uniaxial_ellipsoid(r1, r2, v1, N=2**12):
     v1 = np.array(v1)
     v2 = np.random.randn(3)
     v2 -= v2.dot(v1) * v1
     v2 /= np.linalg.norm(v2)
     v3 = np.cross(v1, v2)
-    return ellipsoid([r1, r2, r2], np.array([v1, v2, v3]))
+    return ellipsoid([r1, r2, r2], np.array([v1, v2, v3]), N=N)
 
-# Returns an xyzJ array representing a guv with
+# Returns an xyzj_list array representing a guv with
 # npx = [x, y, z] voxels with dimensions vox_dims = [xd, yd, zd] with radius
-# centered at center = [xc, yc, zc] up to the bandlimit lmax.
+# centered at center = [xc, yc, zc] up to 
 #
-# The routine "voxelizes" the sphere by integrating over N points on the sphere.
-def guv(npx=[100,100,40], vox_dims=[.1,.1,.1], center=[0,0,0], radius=0.5, lmax=4,
-        N=2**12):
-    guv = np.zeros((npx[0], npx[1], npx[2], utilsh.maxl2maxj(lmax))) # Empty array
-    xyz = utilsh.fibonacci_sphere(N, xyz=True) # Points on sphere
-    guv_xyz = (xyz*radius + center) # Scaled and center
-    ijk_count = np.floor(guv_xyz/vox_dims + (np.array(npx)/2)).astype(np.int) # Convert to ijk
-    for ijk in ijk_count: # Add each point to empty array
-        guv[ijk[0], ijk[1], ijk[2], 0] += 1
-    return guv
+# The routine "voxelizes" the sphere by integrating over M points on the sphere.
+def guv(center=[0,0,0], radius=0.5, N=2**10, M=2**10, ellip_ratio=0.5):
+    xyz_guv = utilsh.fibonacci_sphere(M, xyz=True) # Points on guv
+    xyz_list = (xyz_guv*radius + center) # Scaled and center
+    j_list = np.zeros((M, N))
+    for m in range(M):
+        j_list[m,:] = uniaxial_ellipsoid(1, ellip_ratio, xyz_guv[m], N=N)
+    return xyz_list, j_list
+

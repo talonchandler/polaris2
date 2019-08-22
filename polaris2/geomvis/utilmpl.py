@@ -15,7 +15,7 @@ def mkdir(filename):
         os.makedirs(folder)
 
 # Make figure from grid of geomvis objects
-def plot(input_objects, output_file='output.pdf', dpi=300):
+def plot(input_objects, output_file='output.pdf', ss=1):
     mkdir(output_file)
     
     rows = len(input_objects)
@@ -25,15 +25,27 @@ def plot(input_objects, output_file='output.pdf', dpi=300):
     for row in range(rows):
         for col in range(cols):
             fc = [col/cols, (rows-row-1)/rows, 1/cols, 1/rows]
-            input_objects[row][col].plot(f, fc)
+            input_objects[row][col].plot(f, fc, ss)
             
-    f.savefig(output_file, dpi=dpi)
+    f.savefig(output_file, dpi=300*ss)
 
 # Plot template for 2D and 3D matplotlib geometries
 def plot_template(f, fc, shape=(1,1), xlabel='', ylabel='', clabel='', title='',
-                  scale_bar=True, bump=1.0):
+                  scale_bar=True, bump=1.0, invert=False):
+
     # Subfigure coords
     fx, fy, fw, fh = fc
+    
+    if invert:
+        color='white'
+        from matplotlib.patches import Rectangle
+        f.patches.extend([Rectangle((fx, fy), fw, fh,
+                                    fill=True, color='k', zorder=-1,
+                                    transform=f.transFigure, figure=f)])
+    else:
+        color='black'
+    
+    
 
     # Set precise positions of axes
     wnom = 0.375*fw
@@ -110,14 +122,14 @@ def plot_template(f, fc, shape=(1,1), xlabel='', ylabel='', clabel='', title='',
     if len(shape) == 2:
         if scale_bar:
             ax0.annotate('', xy=(cx-w,cy-h-scale_shift), xytext=(cx+w, cy-h-scale_shift), xycoords='figure fraction', textcoords='figure fraction', va='center', arrowprops=dict(arrowstyle="|-|, widthA=0.5, widthB=0.5", shrinkA=0, shrinkB = 0, lw=.75))
-        ax0.annotate(xlabel, xy=(1,1), xytext=(cx, fy + 0.03*fh), textcoords='figure fraction', ha='center', va='center', rotation=0, zorder=10)
+        ax0.annotate(xlabel, xy=(1,1), xytext=(cx, fy + 0.03*fh), textcoords='figure fraction', ha='center', va='center', rotation=0, zorder=10, color=color)
     elif len(shape) == 3:
         if scale_bar:
             ax0.annotate('', xy=(acx+sw,cy-h-scale_shift), xytext=(cx+w, cy-h-scale_shift), xycoords='figure fraction', textcoords='figure fraction', va='center', arrowprops=dict(arrowstyle="|-|, widthA=0.5, widthB=0.5", shrinkA=0, shrinkB = 0, lw=.75))
         ax0.annotate(xlabel, xy=(1,1), xytext=(acx + (cx+w - acx)/2,cy-h-0.1*fh), textcoords='figure fraction', ha='center', va='center', rotation=0)
 
     # Labels
-    ax0.annotate(title, xy=(1,1), xytext=(cx,cy+hnom+0.05*fh), textcoords='figure fraction', ha='center', va='center')
+    ax0.annotate(title, xy=(1,1), xytext=(cx,cy+hnom+0.05*fh), textcoords='figure fraction', ha='center', va='center', color=color)
     ax1.annotate(clabel, xy=(1,1), xytext=(cx+wnom+cspace+cwidth+0.1*fw, cy), textcoords='figure fraction', ha='center', va='center', rotation=270)
 
     if len(shape) == 2:
