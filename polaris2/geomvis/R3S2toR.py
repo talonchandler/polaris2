@@ -1,7 +1,7 @@
 import vtk
 from vtk.util import numpy_support
 import numpy as np
-from polaris2.geomvis import utilmpl, utilvtk, utilsh
+from polaris2.geomvis import R3toR3, R3toR, utilmpl, utilvtk, utilsh
 import logging
 log = logging.getLogger('log')
 
@@ -81,6 +81,13 @@ class xyzj_list:
 
         return xyzJ(out, vox_dims=vox_dims, xlabel=self.xlabel,
                     title=self.title)
+
+    def to_R3toR3_xyz(self):
+        xyz = utilsh.fibonacci_sphere(self.data_j.shape[1], xyz=True)
+        max_indices = np.argmax(self.data_j, axis=1)
+        xyz_max = xyz[max_indices]*np.max(self.data_j)
+        return R3toR3.xyz_list(self.data_xyz, xyz_max, shape=self.shape,
+                               xlabel=self.xlabel, title='Peaks')
         
 # Dipole distribution at a single position in the form
 # [x0,y0,z0,[J0, J1, ..., JN] where [J0, ..., JN] are even spherical harmonic

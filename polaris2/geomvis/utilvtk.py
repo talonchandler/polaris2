@@ -24,7 +24,7 @@ def setup_render():
 def vtk2imshow(renWin, ax, ss=1):
     # Render
     renWin.OffScreenRenderingOn()
-    renWin.SetSize(1000*ss, 1000*ss)
+    renWin.SetSize(int(1000*ss), int(1000*ss))
     renWin.Render()
 
     # Filter renWin
@@ -200,10 +200,10 @@ def draw_sphere_field(ren, centers, radii, plot_negative=True):
         # TODO: Generalize colormaps
         cols = 255*np.ones(all_xyz.shape)
         iradiif = radii.flatten()
-        if i == 0:
+        if i == 0: # Red to white
             cols[:,1] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
             cols[:,2] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
-        else:
+        else: # Blue to white
             cols[:,0] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
             cols[:,1] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
         vtk_colors = numpy_support.numpy_to_vtk(cols, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
