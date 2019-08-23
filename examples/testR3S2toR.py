@@ -61,4 +61,4 @@ for i in tqdm(range(N)):
     for obj in obj_list:
         obj.increment_camera(360/N)
     istr = '{:03d}'.format(i)
-    utilmpl.plot([obj_list], './test/'+istr+'.png', ss=2)
+    utilmpl.plot([obj_list], './test/'+istr+'.png', ss=1)
