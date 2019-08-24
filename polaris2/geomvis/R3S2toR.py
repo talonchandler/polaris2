@@ -2,6 +2,7 @@ import vtk
 from vtk.util import numpy_support
 import numpy as np
 from polaris2.geomvis import R3toR3, R3toR, utilmpl, utilvtk, utilsh
+import tifffile
 import logging
 log = logging.getLogger('log')
 
@@ -13,7 +14,7 @@ log = logging.getLogger('log')
 # Single directions can be data_j = [[sx0,sy0,sz0],...,[sxM,syM,szM]] form.
 class xyzj_list:
     def __init__(self, data_xyz, data_j, shape=[10,10,2.5], xlabel='', title='',
-                 rad_scale=1, skip_n=1):
+                 rad_scale=1):
         
         self.data_xyz = np.array(data_xyz)
         self.data_j = np.array(data_j)
@@ -23,7 +24,6 @@ class xyzj_list:
         self.xlabel = xlabel
         self.title = title
         self.rad_scale = rad_scale
-        self.skip_n = skip_n
 
         # Setup renderer
         self.ren, self.renWin, self.iren = utilvtk.setup_render()
@@ -37,9 +37,8 @@ class xyzj_list:
                 utilvtk.draw_double_arrow(self.ren, self.data_xyz[i], self.data_j[i])
         # Add spherical function for ensemble
         else:
-            centers = self.data_xyz[::self.skip_n]
-            radii = (self.data_j*self.rad_scale/np.max(self.data_j))[::self.skip_n,:]
-            utilvtk.draw_sphere_field(self.ren, centers, radii)
+            radii = self.data_j*self.rad_scale/np.max(self.data_j)
+            utilvtk.draw_sphere_field(self.ren, self.data_xyz, radii)
 
         # Draw extras
         utilvtk.draw_origin_dot(self.ren)
@@ -63,7 +62,6 @@ class xyzj_list:
         ax[1].axis('off')
 
     def to_xyzJ_list(self, lmax=4):
-        # For ensembles only
         N = self.data_j.shape[-1]
         J = utilsh.maxl2maxj(lmax)
         B = utilsh.calcB(N, J)
@@ -71,23 +69,16 @@ class xyzj_list:
         return xyzJ_list(self.data_xyz, data_J, shape=self.shape,
                          xlabel=self.xlabel, title=self.title)
 
-    def to_xyzJ(self, npx=[10,10,10], vox_dims=[.1,.1,.1], lmax=4):
-        xyzJ_list = self.to_xyzJ_list(lmax=lmax)
-
-        out = np.zeros((npx[0], npx[1], npx[2], utilsh.maxl2maxj(lmax)))
-        ijk_count = np.floor(xyzJ_list.data_xyz/vox_dims + (np.array(npx)/2)).astype(np.int)
-        for m, ijk in enumerate(ijk_count):
-            out[ijk[0], ijk[1], ijk[2], :] += xyzJ_list.data_J[m,:]
-
-        return xyzJ(out, vox_dims=vox_dims, xlabel=self.xlabel,
-                    title=self.title)
-
     def to_R3toR3_xyz(self):
         xyz = utilsh.fibonacci_sphere(self.data_j.shape[1], xyz=True)
         max_indices = np.argmax(self.data_j, axis=1)
         xyz_max = xyz[max_indices]*np.max(self.data_j)
         return R3toR3.xyz_list(self.data_xyz, xyz_max, shape=self.shape,
                                xlabel=self.xlabel, title='Peaks')
+
+    def to_xyzJ(self, npx=[10,10,10], vox_dims=[.1,.1,.1], lmax=4):
+        xyzJ_list = self.to_xyzJ_list(lmax=lmax)
+        return xyzJ_list.to_xyzJ(npx=npx, vox_dims=vox_dims, lmax=lmax)
         
 # Dipole distribution at a single position in the form
 # [x0,y0,z0,[J0, J1, ..., JN] where [J0, ..., JN] are even spherical harmonic
@@ -122,7 +113,7 @@ class xyzJ_list:
 
     def build_actors(self):
         log.info('Plotting '+str(self.data_xyz.shape[0])+' ODFs.')
-        
+
         # Plots spheres
         radii = np.einsum('ij,kj->ki', self.B, self.data_J)
         radii /= np.max(radii)
@@ -149,12 +140,28 @@ class xyzJ_list:
         ax[0].axis('off')
         ax[1].axis('off')
 
+    def to_xyzj_list(self, N):
+        J = utilsh.maxl2maxj(self.lmax)
+        B = utilsh.calcB(N, self.J)
+        data_j = np.einsum('ij,kj->ki', B, self.data_J)
+        return xyzj_list(self.data_xyz, data_j, shape=self.shape,
+                         xlabel=self.xlabel, title=self.title)
+
+    def to_xyzJ(self, npx=[10,10,10], vox_dims=[.1,.1,.1], lmax=4):
+        out = np.zeros((npx[0], npx[1], npx[2], utilsh.maxl2maxj(lmax)))
+        ijk_count = np.floor(self.data_xyz/vox_dims + (np.array(npx)/2)).astype(np.int)
+        for m, ijk in enumerate(ijk_count):
+            out[ijk[0], ijk[1], ijk[2], :] += self.data_J[m,:]
+
+        return xyzJ(out, vox_dims=vox_dims, xlabel=self.xlabel,
+                    title=self.title)
+
 # Dipole distribution at very position in a volume.
 # data is a 4D array with xyz positions on the first three dimensions and
 # real even spherical harmonic coefficients on the last dimension.
 class xyzJ:
     def __init__(self, data, vox_dims=[.1,.1,.1], N=2**10, xlabel='', title='',
-                 skip_n=1, rad_scale=1):
+                 skip_n=1, rad_scale=1, threshold=0):
         self.data = data
         self.npx = np.array(self.data.shape[0:3])
         self.vox_dims = vox_dims # um
@@ -165,6 +172,7 @@ class xyzJ:
         self.title = title
         self.skip_n = skip_n
         self.rad_scale = rad_scale
+        self.threshold = threshold
 
         # Setup renderer
         self.ren, self.renWin, self.iren = utilvtk.setup_render()
@@ -173,20 +181,10 @@ class xyzJ:
         self.lmax, mm = utilsh.j2lm(self.data.shape[-1] - 1)
         self.J = utilsh.maxl2maxj(self.lmax)
 
-        # # Fill the rest of the last l band with zeros
-        # if len(self.data.shape[-1]) != self.J:
-        #     temp = np.zeros(self.J)
-        #     temp[:len(self.data.shape[-1])] = np.array(self.data.shape[-1])
-        #     self.data[-1] = temp
-        # else:
-        #     self.data[-1] = np.array(data[-1])
-
-        # Calc points for spherical plotting
-        self.xyz = utilsh.fibonacci_sphere(self.N, xyz=True)
-        self.B = utilsh.calcB(self.N, self.J)
-
     def build_actors(self):
-        thresh_mask = self.data[:,:,:,0] > 0
+        self.B = utilsh.calcB(self.N, self.J)
+        
+        thresh_mask = self.data[:,:,:,0] > self.threshold
         skip_mask = np.zeros_like(thresh_mask, dtype=np.bool)
         skip_mask[::self.skip_n,::self.skip_n,::self.skip_n] = 1
         
@@ -194,7 +192,7 @@ class xyzJ:
         J_list = self.data[ijk[:,0], ijk[:,1], ijk[:,2], :]
         
         log.info('Plotting '+str(ijk.shape[0])+' ODFs.')
-        
+
         # Draw odfs
         centers = (ijk - 0.5*self.npx)*self.vox_dims # ijk2xyz
         radii = np.einsum('ij,kj->ki', self.B, J_list)
@@ -220,4 +218,37 @@ class xyzJ:
         utilvtk.vtk2imshow(self.renWin, ax[0], ss)
         ax[0].axis('off')
         ax[1].axis('off')
+
+    def to_xyzJ_list(self, threshold=0, skip_n=1):
+        thresh_mask = self.data[:,:,:,0] > threshold
+        skip_mask = np.zeros_like(thresh_mask, dtype=np.bool)
+        skip_mask[::skip_n,::skip_n,::skip_n] = 1
+        
+        ijk = np.array(np.nonzero(thresh_mask*skip_mask)).T
+        centers = (ijk - 0.5*self.npx)*self.vox_dims # ijk2xyz        
+        J_list = self.data[ijk[:,0], ijk[:,1], ijk[:,2], :]
+
+        return xyzJ_list(centers, J_list, xlabel=self.xlabel, title=self.title)
+
+    def to_R3toR_xyz(self):
+        return R3toR.xyz(self.data[:,:,:,0],
+                         vox_dims=self.vox_dims, 
+                         xlabel=self.xlabel,
+                         title='Maximum intensity projection')
+
+    def to_tiff(self, filename):
+        utilmpl.mkdir(filename)
+        log.info('Writing '+filename)
+        with tifffile.TiffWriter(filename, imagej=True) as tif:
+            d = np.moveaxis(self.data, [2, 3, 1, 0], [0, 1, 2, 3]).astype(np.float32)
+            tif.save(d[None,:,:,:,:]) # TZCYXS
+
+    def from_tiff(self, filename):
+        log.info('Reading '+filename)
+        with tifffile.TiffFile(filename) as tf:
+            self.data = np.ascontiguousarray(np.moveaxis(tf.asarray(), [0, 1, 2, 3], [2, 3, 1, 0]))
+        self.npx = np.array(self.data.shape[0:3])
+        self.shape = np.array(self.npx)*np.array(self.vox_dims)
+        self.lmax, mm = utilsh.j2lm(self.data.shape[-1] - 1)
+        self.J = utilsh.maxl2maxj(self.lmax)
         

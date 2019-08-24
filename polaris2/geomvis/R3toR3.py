@@ -81,6 +81,8 @@ class xyz_list:
         actor = vtk.vtkActor()
         actor.SetMapper(poly_mapper)
         actor.GetProperty().SetLineWidth(2)
+        # actor.GetProperty().SetLighting(0)
+        actor.GetProperty().SetAmbient(0.5)
         self.ren.AddActor(actor)
 
         # Draw extras

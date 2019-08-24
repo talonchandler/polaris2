@@ -215,5 +215,6 @@ def draw_sphere_field(ren, centers, radii, plot_negative=True):
         # Create actor
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
+        actor.GetProperty().SetAmbient(0.25)
 
         ren.AddActor(actor)
