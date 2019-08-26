@@ -228,7 +228,12 @@ class xyzJ:
         centers = (ijk - 0.5*self.npx)*self.vox_dims # ijk2xyz        
         J_list = self.data[ijk[:,0], ijk[:,1], ijk[:,2], :]
 
-        return xyzJ_list(centers, J_list, xlabel=self.xlabel, title=self.title)
+        return xyzJ_list(centers, J_list, xlabel=self.xlabel, title=self.title, shape=self.shape)
+
+    def to_R3toR3_xyz(self, threshold=0, skip_n=1, N=2**10):
+        xyzJ_list = self.to_xyzJ_list(threshold, skip_n)
+        xyzj_list = xyzJ_list.to_xyzj_list(N)
+        return xyzj_list.to_R3toR3_xyz()
 
     def to_R3toR_xyz(self):
         return R3toR.xyz(self.data[:,:,:,0],

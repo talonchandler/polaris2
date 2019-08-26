@@ -2,12 +2,15 @@ import numpy as np
 import vtk
 from vtk.util import numpy_support as ns
 from polaris2.geomvis import utilmpl, utilvtk
+import logging
+log = logging.getLogger('log')
 
 # Sparse mapping from R3 to R3
 # data_xyz is an Mx3 array of input positions
 # data_ijk is an Mx3 array of output positions
 class xyz_list:
-    def __init__(self, data_xyz, data_ijk, shape=[10,10,4], vmin=0, vmax=None, xlabel='', title='', invert=True):
+    def __init__(self, data_xyz, data_ijk, shape=[10,10,4], vmin=0, vmax=None, xlabel='', title='', invert=True,
+                 rad_scale=1.0, skip_n=1):
         self.data_xyz = data_xyz
         self.data_ijk = data_ijk
 
@@ -19,11 +22,15 @@ class xyz_list:
         # Setup renderer
         self.ren, self.renWin, self.iren = utilvtk.setup_render()
 
+        self.rad_scale = rad_scale
+
     def build_actors(self):
         M = self.data_xyz.shape[0]
+        log.info('Plotting '+str(M)+' peaks.')        
         
         # Calculate points
-        r = 0.1
+        max_rad = np.max(np.linalg.norm(self.data_xyz - self.data_ijk, axis=-1))
+        r = self.rad_scale/max_rad
         starts = self.data_xyz - r*self.data_ijk
         ends = self.data_xyz + r*self.data_ijk
 
@@ -71,8 +78,8 @@ class xyz_list:
 
         # Color
         cols = np.zeros_like(points_array)
-        cols[0::2] = 255*np.abs(self.data_ijk)
-        cols[1::2] = 255*np.abs(self.data_ijk)
+        cols[0::2] = 255*np.abs(self.data_ijk/max_rad)
+        cols[1::2] = 255*np.abs(self.data_ijk/max_rad)
         vtk_colors = ns.numpy_to_vtk(cols, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
         vtk_colors.SetName("Colors")
         poly_data.GetPointData().SetScalars(vtk_colors)

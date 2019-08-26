@@ -6,7 +6,7 @@ log = logging.getLogger('log')
 
 class xy:
     def __init__(self, data, cmap='gray', xlabel='', title='',
-                 fov=1, plotfov=1):
+                 fov=[0,1], plotfov=[0,1]):
                  
         self.data = data
 
@@ -22,7 +22,7 @@ class xy:
         with tifffile.TiffWriter(filename, imagej=True) as tif:
             tif.save(self.data.astype(np.float32)) # TZCYXS
 
-    def plot(self, f, fc):
+    def plot(self, f, fc, ss):
         ax = utilmpl.plot_template(f, fc, shape=self.data.shape, xlabel=self.xlabel,
                                    title=self.title)
 

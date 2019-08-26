@@ -1,11 +1,14 @@
+from tqdm import tqdm
 import numpy as np
 from polaris2.geomvis import R2toR, R2toC2, R3S2toR, utilsh
+import logging
+log = logging.getLogger('log')
 
 # Simulates a linear dipole imaged by 4f detection system.
 class FourF:
 
     def __init__(self, NA=1.4, M=63, n0=1.5, lamb=0.546, wpx_real=7.4,
-                 npx=(7*17, 7*17), ss=3, plotfov=10, irrad_title='4$f$ detector irradiance'):
+                 npx=(7*17, 7*17), ss=2, plotfov=10, irrad_title='4$f$ detector irradiance'):
         # Input parameters
         self.NA = NA
         self.M = M # magnification
@@ -224,6 +227,38 @@ class FourF:
                         fov=[-self.fov/2, self.fov/2],
                         plotfov=[-self.plotfov/2, self.plotfov/2],
                         xlabel=str(self.plotfov)+' $\mu$m')
+
+    # Generates the irradiance pattern due to a dense xyzJ array.
+    # This is a faster path than xyzJ_list_to_xy_det
+    # Input: R3S2toR.xyzJ
+    # Output: R2toR.xy object
+    def xyzJ_to_xy_det(self, xyzJ):
+        self.precompute_XYzJ_to_XY_det(xyzJ.data.shape, xyzJ.vox_dims)
+
+        xyzJ_shift = np.fft.ifftshift(xyzJ.data, axes=(0,1))
+        XYzJ_shift = np.fft.fft2(xyzJ_shift, axes=(0,1)) # FT along xy
+        XY_shift = np.einsum('ijkl,ijkl->ij', self.H_XYzJ_to_XY, XYzJ_shift) # Filter and sum over J and z
+        xy_shift = np.fft.ifft2(XY_shift) # IFT along XY
+        xy = np.fft.fftshift(xy_shift)
+        
+        return R2toR.xy(np.real(xy),
+                        title=self.irrad_title,
+                        fov=[-self.fov/2, self.fov/2],
+                        plotfov=[-self.plotfov/2, self.plotfov/2],
+                        xlabel=str(self.plotfov)+' $\mu$m')
+
+    def precompute_XYzJ_to_XY_det(self, shape, vox_dims):
+        self.H_XYzJ_to_XY = np.zeros(shape, dtype=np.complex64)
+
+        log.info('Computing psfs')
+        for k in tqdm(range(shape[2]//2)):
+            z = (k + 0.5*(shape[2]%2 != 0) - 0.5*shape[2])*vox_dims[-1] # k2z
+            self.precompute_xyzJ_single_to_xy_det([0,0,z])
+            h_shift = np.fft.fftshift(self.h_xyzJ_single_to_xy_det, axes=(0,1))
+
+            # Exploit symmetry above and below the focal plane
+            self.H_XYzJ_to_XY[:,:,k,:6] = np.fft.fft2(h_shift, axes=(0,1))
+            self.H_XYzJ_to_XY[:,:,-k,:6] = self.H_XYzJ_to_XY[:,:,k,:6]
     
 # Simulates a linear dipole imaged by 4f system with a microlens array. 
 # Depends on FourF class.
