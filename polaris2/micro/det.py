@@ -1,4 +1,4 @@
-from tqdm import tqdm
+from tqdm import trange, tqdm
 import numpy as np
 from polaris2.geomvis import R2toR, R2toC2, R3S2toR, utilsh
 import logging
@@ -254,7 +254,7 @@ class FourF:
         for k in tqdm(range(shape[2]//2)):
             z = (k + 0.5*(shape[2]%2 != 0) - 0.5*shape[2])*vox_dims[-1] # k2z
             self.precompute_xyzJ_single_to_xy_det([0,0,z])
-            h_shift = np.fft.fftshift(self.h_xyzJ_single_to_xy_det, axes=(0,1))
+            h_shift = np.fft.ifftshift(self.h_xyzJ_single_to_xy_det, axes=(0,1))
 
             # Exploit symmetry above and below the focal plane
             self.H_XYzJ_to_XY[:,:,k,:6] = np.fft.fft2(h_shift, axes=(0,1))
@@ -272,6 +272,8 @@ class FourFLF:
         self.fulen = fulen # ulens focal length        
         self.ulenpx = ulenpx # number of pixels behind each ulens
         self.ulens_aperture = ulens_aperture # 'square' or 'circle'
+
+        self.nulen = int(self.fourf.npx[0]/ulenpx)
 
     # Generates detector fields (after microlenses) due to a single dipole
     # Input: R3S2toR.xyzj_list with a single entry
@@ -381,4 +383,63 @@ class FourFLF:
                         fov=[-self.fourf.fov/2, self.fourf.fov/2],
                         plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
                         xlabel=str(self.fourf.plotfov)+' $\mu$m')
+
+    # Generates the irradiance pattern due to a dense xyzJ array.
+    # This is a faster path than xyzJ_list_to_xy_det
+    # Input: R3S2toR.xyzJ
+    # Output: R2toR.xy object
+    def xyzJ_to_xy_det(self, xyzJ):
+
+        # Precompute 
+        uvstzJ_shape = (self.nulen, self.ulenpx, self.nulen, self.ulenpx, xyzJ.data.shape[-2], xyzJ.data.shape[-1])
+        self.precompute_UvStzJ_to_UvSt_det(uvstzJ_shape, xyzJ.vox_dims)
         
+        # Reshape xyzJ to uvstzJ
+        uvstzJ = xyzJ.data.reshape(uvstzJ_shape)
+
+        # uvstzJ to UVstzJ (with Fourier shifting)
+        uvstzJ_shift = np.fft.ifftshift(uvstzJ.data, axes=(0,2))
+        UvStzJ_shift = np.fft.fftn(uvstzJ_shift, axes=(0,2))
+
+        # Matrix multiplication for microscope
+        UvSt_shift = np.einsum('ijklmnop,iokpmn->ijkl', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
+
+        # FFT to uvst and shift
+        uvst_shift = np.fft.ifftn(UvSt_shift, axes=(0,2))
+        uvst = np.fft.fftshift(uvst_shift, axes=(0,2))
+
+        # Reshape uvst to xy
+        xy = uvst.reshape(self.fourf.npx[0], self.fourf.npx[0])
+
+        return R2toR.xy(np.real(xy),
+                        title=self.fourf.irrad_title,
+                        fov=[-self.fourf.fov/2, self.fourf.fov/2],
+                        plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
+                        xlabel=str(self.fourf.plotfov)+' $\mu$m')
+
+    def precompute_UvStzJ_to_UvSt_det(self, shape, vox_dims):
+        self.H_UvStzJ_to_UvSt_det = np.zeros(shape + (shape[1], shape[3],), dtype=np.complex64)
+
+        log.info('Computing psfs')
+        oddI = (shape[1]%2 == 1)
+        oddJ = (shape[3]%2 == 1)
+        oddK = (shape[4]%2 == 1)
+        import pdb; pdb.set_trace()
+        
+        for i in trange(int(shape[1]/2 + 0.5*oddI), desc='Outer loop'):
+            for j in trange(int(shape[3]/2 + 0.5*oddJ), desc='Inner loop', leave=False):
+                for k in range(shape[4]):
+                    x = (i + 0.5*oddI - 0.5*shape[1])*vox_dims[0] # i2x
+                    y = (j + 0.5*oddJ - 0.5*shape[3])*vox_dims[1] # j2y
+                    z = (k + 0.5*oddK - 0.5*shape[4])*vox_dims[2] # k2z
+                    
+                    self.precompute_xyzJ_single_to_xy_det([x,y,z])
+                    h_uvstJ = self.h_xyzJ_single_to_xy_det.reshape(shape[0:4]+(6,))
+                    h_shift = np.fft.ifftshift(h_uvstJ, axes=(0,2))
+
+                    # Fill array and exploit symmetry of microlenses
+                    entry = np.fft.fft2(h_shift, axes=(0,2))
+                    self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,j] = entry
+                    self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,-j] = np.flip(entry, axis=(0,1,2,3))
+                    self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,-j] = np.flip(entry, axis=(2,3))
+                    self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,j] = np.flip(entry, axis=(0,1))
