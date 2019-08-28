@@ -13,7 +13,7 @@ log = logging.getLogger('log')
 #
 # Single directions can be data_j = [[sx0,sy0,sz0],...,[sxM,syM,szM]] form.
 class xyzj_list:
-    def __init__(self, data_xyz, data_j, shape=[10,10,2.5], xlabel='', title='',
+    def __init__(self, data_xyz, data_j, shape=[10,10,2.5], title='',
                  rad_scale=1):
         
         self.data_xyz = np.array(data_xyz)
@@ -21,15 +21,16 @@ class xyzj_list:
         self.M = self.data_xyz.shape[0] 
         self.shape = shape # um
 
-        self.xlabel = xlabel
+        self.xlabel = utilmpl.shape2xlabel(self.shape)
         self.title = title
         self.rad_scale = rad_scale
 
+    def build_actors(self):
+
+        log.info('Plotting '+str(self.data_xyz.shape[0])+' ODFs.')
+        
         # Setup renderer
         self.ren, self.renWin, self.iren = utilvtk.setup_render()
-
-    def build_actors(self):
-        log.info('Plotting '+str(self.data_xyz.shape[0])+' ODFs.')
         
         # Add double arrows for single dipole
         if self.data_j.shape[1] == 3:
@@ -46,7 +47,7 @@ class xyzj_list:
         utilvtk.draw_axes(self.ren, *self.shape)
         
         # Set cameras
-        dist = 1.1*np.linalg.norm(self.shape)
+        dist = 1.15*np.linalg.norm(self.shape)
         self.ren.GetActiveCamera().SetPosition(np.array([1,-1,1])*dist)
         self.ren.GetActiveCamera().SetViewUp([0,0,1])
 
@@ -66,14 +67,14 @@ class xyzj_list:
         J = utilsh.maxl2maxj(lmax)
         B = utilsh.calcB(N, J)
         data_J = np.einsum('ij,ki->kj', B, self.data_j)
-        return xyzJ_list(self.data_xyz, data_J, shape=self.shape,
-                         xlabel=self.xlabel, title=self.title)
+        return xyzJ_list(self.data_xyz, data_J, shape=self.shape, title=self.title)
+                         
 
-    def to_R3toR3_xyz(self):
+    def to_R3toR3_xyz(self, shape):
         xyz = utilsh.fibonacci_sphere(self.data_j.shape[1], xyz=True)
         max_indices = np.argmax(self.data_j, axis=1)
         xyz_max = xyz[max_indices]*np.max(self.data_j)
-        return R3toR3.xyz_list(self.data_xyz, xyz_max, shape=self.shape,
+        return R3toR3.xyz_list(self.data_xyz, xyz_max, shape=shape,
                                xlabel=self.xlabel, title='Peaks')
 
     def to_xyzJ(self, npx=[10,10,10], vox_dims=[.1,.1,.1], lmax=4):
@@ -84,18 +85,15 @@ class xyzj_list:
 # [x0,y0,z0,[J0, J1, ..., JN] where [J0, ..., JN] are even spherical harmonic
 # coefficients. 
 class xyzJ_list:
-    def __init__(self, data_xyz, data_J, shape=[10,10,4], N=2**12, xlabel='', title=''):
+    def __init__(self, data_xyz, data_J, shape=[10,10,4], N=2**12, title=''):
         self.data_xyz = np.array(data_xyz)
         self.data_J = np.array(data_J)
         self.M = self.data_xyz.shape[0] 
         self.N = N
         self.shape = shape # um
 
-        self.xlabel = xlabel
+        self.xlabel = utilmpl.shape2xlabel(self.shape)
         self.title = title
-
-        # Setup renderer
-        self.ren, self.renWin, self.iren = utilvtk.setup_render()
 
         # Calculate dimensions
         self.lmax, mm = utilsh.j2lm(self.data_J.shape[-1] - 1)
@@ -114,6 +112,9 @@ class xyzJ_list:
     def build_actors(self):
         log.info('Plotting '+str(self.data_xyz.shape[0])+' ODFs.')
 
+        # Setup renderer
+        self.ren, self.renWin, self.iren = utilvtk.setup_render()
+
         # Plots spheres
         radii = np.einsum('ij,kj->ki', self.B, self.data_J)
         radii /= np.max(radii)
@@ -125,7 +126,7 @@ class xyzJ_list:
         utilvtk.draw_axes(self.ren, *self.shape)
         
         # Set cameras
-        dist = 1.1*np.linalg.norm(self.shape)
+        dist = 1.15*np.linalg.norm(self.shape)
         self.ren.GetActiveCamera().SetPosition(np.array([1,-1,1])*dist)
         self.ren.GetActiveCamera().SetViewUp([0,0,1])
 
@@ -145,22 +146,23 @@ class xyzJ_list:
         B = utilsh.calcB(N, self.J)
         data_j = np.einsum('ij,kj->ki', B, self.data_J)
         return xyzj_list(self.data_xyz, data_j, shape=self.shape,
-                         xlabel=self.xlabel, title=self.title)
+                         title=self.title)
 
-    def to_xyzJ(self, npx=[10,10,10], vox_dims=[.1,.1,.1], lmax=4):
-        out = np.zeros((npx[0], npx[1], npx[2], utilsh.maxl2maxj(lmax)))
+    def to_xyzJ(self, xyzJ_shape=[10,10,10,6], vox_dims=[.1,.1,.1]):
+        # out = np.zeros((npx[0], npx[1], npx[2], utilsh.maxl2maxj(lmax)))
+        out = np.zeros(xyzJ_shape)
+        npx = xyzJ_shape[0:3]
         ijk_count = np.floor(self.data_xyz/vox_dims + (np.array(npx)/2)).astype(np.int)
         for m, ijk in enumerate(ijk_count):
-            out[ijk[0], ijk[1], ijk[2], :] += self.data_J[m,:]
+            out[ijk[0], ijk[1], ijk[2], :] += self.data_J[m,:xyzJ_shape[3]]
 
-        return xyzJ(out, vox_dims=vox_dims, xlabel=self.xlabel,
-                    title=self.title)
+        return xyzJ(out, vox_dims=vox_dims, title=self.title)
 
 # Dipole distribution at very position in a volume.
 # data is a 4D array with xyz positions on the first three dimensions and
 # real even spherical harmonic coefficients on the last dimension.
 class xyzJ:
-    def __init__(self, data, vox_dims=[.1,.1,.1], N=2**10, xlabel='', title='',
+    def __init__(self, data, vox_dims=[.1,.1,.1], N=2**10, title='',
                  skip_n=1, rad_scale=1, threshold=0):
         self.data = data
         self.npx = np.array(self.data.shape[0:3])
@@ -168,20 +170,20 @@ class xyzJ:
         self.N = N
         self.shape = np.array(data.shape[0:3])*np.array(vox_dims)
 
-        self.xlabel = xlabel
+        self.xlabel = utilmpl.shape2xlabel(self.shape)
         self.title = title
         self.skip_n = skip_n
         self.rad_scale = rad_scale
         self.threshold = threshold
-
-        # Setup renderer
-        self.ren, self.renWin, self.iren = utilvtk.setup_render()
 
         # Calculate dimensions
         self.lmax, mm = utilsh.j2lm(self.data.shape[-1] - 1)
         self.J = utilsh.maxl2maxj(self.lmax)
 
     def build_actors(self):
+        # Setup renderer
+        self.ren, self.renWin, self.iren = utilvtk.setup_render()
+        
         self.B = utilsh.calcB(self.N, self.J)
         
         thresh_mask = self.data[:,:,:,0] > self.threshold
@@ -196,7 +198,7 @@ class xyzJ:
         # Draw odfs
         centers = (ijk - 0.5*self.npx)*self.vox_dims # ijk2xyz
         radii = np.einsum('ij,kj->ki', self.B, J_list)
-        radii *= self.rad_scale*self.skip_n*np.min(self.vox_dims)/(2*np.max(radii))
+        radii *= self.rad_scale*self.skip_n*np.max(self.vox_dims)/(np.max(radii))
         utilvtk.draw_sphere_field(self.ren, centers, radii)
 
         # Draw extras
@@ -204,7 +206,7 @@ class xyzJ:
         utilvtk.draw_axes(self.ren, *self.shape)
         
         # Set cameras
-        dist = 1.1*np.linalg.norm(self.shape)
+        dist = 1.15*np.linalg.norm(self.shape)
         self.ren.GetActiveCamera().SetPosition(np.array([1,-1,1])*dist)
         self.ren.GetActiveCamera().SetViewUp([0,0,1])
 
@@ -228,17 +230,16 @@ class xyzJ:
         centers = (ijk - 0.5*self.npx)*self.vox_dims # ijk2xyz        
         J_list = self.data[ijk[:,0], ijk[:,1], ijk[:,2], :]
 
-        return xyzJ_list(centers, J_list, xlabel=self.xlabel, title=self.title, shape=self.shape)
+        return xyzJ_list(centers, J_list, title=self.title, shape=self.shape)
 
     def to_R3toR3_xyz(self, threshold=0, skip_n=1, N=2**10):
         xyzJ_list = self.to_xyzJ_list(threshold, skip_n)
         xyzj_list = xyzJ_list.to_xyzj_list(N)
-        return xyzj_list.to_R3toR3_xyz()
+        return xyzj_list.to_R3toR3_xyz(shape=self.shape)
 
     def to_R3toR_xyz(self):
         return R3toR.xyz(self.data[:,:,:,0],
                          vox_dims=self.vox_dims, 
-                         xlabel=self.xlabel,
                          title='Maximum intensity projection')
 
     def to_tiff(self, filename):
@@ -246,14 +247,25 @@ class xyzJ:
         log.info('Writing '+filename)
         with tifffile.TiffWriter(filename, imagej=True) as tif:
             d = np.moveaxis(self.data, [2, 3, 1, 0], [0, 1, 2, 3]).astype(np.float32)
-            tif.save(d[None,:,:,:,:]) # TZCYXS
+            tif.save(d[None,:,:,:,:],
+                     resolution=(1/self.vox_dims[0], 1/self.vox_dims[1]),
+                     metadata={'spacing': self.vox_dims[2], 'unit':'um'}) # TZCYXS
 
     def from_tiff(self, filename):
         log.info('Reading '+filename)
         with tifffile.TiffFile(filename) as tf:
+            # Read data
             self.data = np.ascontiguousarray(np.moveaxis(tf.asarray(), [0, 1, 2, 3], [2, 3, 1, 0]))
+
+            # Read vox_dims from metadata
+            xx = tf.pages[0].tags['XResolution'].value
+            self.vox_dims[0] = xx[1]/xx[0]
+            yy = tf.pages[0].tags['YResolution'].value
+            self.vox_dims[1] = yy[1]/yy[0]
+            self.vox_dims[2] = tf.imagej_metadata['spacing']
+            
         self.npx = np.array(self.data.shape[0:3])
         self.shape = np.array(self.npx)*np.array(self.vox_dims)
+        self.xlabel = utilmpl.shape2xlabel(self.shape)
         self.lmax, mm = utilsh.j2lm(self.data.shape[-1] - 1)
         self.J = utilsh.maxl2maxj(self.lmax)
-        

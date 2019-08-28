@@ -9,7 +9,7 @@ class xyz:
         self.shape = data.shape*np.array(vox_dims)
         self.vox_dims = vox_dims
         self.invert = invert
-        self.xlabel = xlabel
+        self.xlabel = utilmpl.shape2xlabel(self.shape)
         self.title = title
         self.vmin = vmin
         if vmax is None:
@@ -79,10 +79,9 @@ class xyz:
         utilvtk.draw_axes(self.ren, *self.shape)
         
         # Set cameras
-        dist = 1.1*np.linalg.norm(self.shape)
+        dist = 1.15*np.linalg.norm(self.shape)
         self.ren.GetActiveCamera().SetPosition(np.array([1,-1,1])*dist)
         self.ren.GetActiveCamera().SetViewUp([0,0,1])
-        self.ren.ResetCamera()
 
     def increment_camera(self, az):
         self.ren.GetActiveCamera().Azimuth(az)

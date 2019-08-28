@@ -15,14 +15,14 @@ class xyz_list:
         self.data_ijk = data_ijk
 
         self.shape = shape
-
-        self.xlabel = xlabel
+        
+        self.xlabel = utilmpl.shape2xlabel(self.shape)
         self.title = title
 
         # Setup renderer
         self.ren, self.renWin, self.iren = utilvtk.setup_render()
 
-        self.rad_scale = rad_scale
+        self.rad_scale = rad_scale*np.min(self.shape)/50
 
     def build_actors(self):
         M = self.data_xyz.shape[0]
@@ -97,10 +97,9 @@ class xyz_list:
         utilvtk.draw_axes(self.ren, *self.shape)
         
         # Set cameras
-        dist = 1.1*np.linalg.norm(self.shape)
+        dist = 1.15*np.linalg.norm(self.shape)
         self.ren.GetActiveCamera().SetPosition(np.array([1,-1,1])*dist)
         self.ren.GetActiveCamera().SetViewUp([0,0,1])
-        self.ren.ResetCamera()
 
     def increment_camera(self, az):
         self.ren.GetActiveCamera().Azimuth(az)

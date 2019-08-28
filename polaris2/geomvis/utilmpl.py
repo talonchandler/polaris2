@@ -158,3 +158,10 @@ def c2rgb(z, rmin=0, rmax=1, hue_start=0):
     v = (amp -rmin) / (rmax - rmin)
     return mpl.colors.hsv_to_rgb(np.dstack((h,s,v)))
 
+# Labels
+def shape2xlabel(shape):
+    a = '{:.1f}'.format(shape[0])
+    b = '{:.1f}'.format(shape[1])
+    c = '{:.1f}'.format(shape[2])
+    return a+'$\\times$'+b+'$\\times$'+c+' $\mu$m${}^3$'
+

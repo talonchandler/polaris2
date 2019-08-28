@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import numpy as np
 from polaris2.geomvis import utilsh
 
@@ -61,7 +62,7 @@ def guv(center=[0,0,0], radius=0.5, N=2**10, M=2**10, ellip_ratio=0.5,
     xyz_guv = utilsh.fibonacci_sphere(M, xyz=True) # Points on guv
     xyz_list = (xyz_guv*radius + center) # Scaled and center
     j_list = np.zeros((M, N))
-    for m in range(M):
+    for m in tqdm(range(M)):
         if dist_type == 'ellipsoid':
             j_list[m,:] = uniaxial_ellipsoid(1, ellip_ratio, xyz_guv[m], N=N)
         elif dist_type == 'uniform':

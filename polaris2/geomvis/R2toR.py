@@ -5,10 +5,11 @@ import logging
 log = logging.getLogger('log')
 
 class xy:
-    def __init__(self, data, cmap='gray', xlabel='', title='',
+    def __init__(self, data, px_dims=[1,1], cmap='gray', xlabel='', title='',
                  fov=[0,1], plotfov=[0,1]):
                  
         self.data = data
+        self.px_dims = px_dims
 
         self.cmap = cmap
         self.xlabel = xlabel
@@ -17,10 +18,12 @@ class xy:
         self.fov = fov
         self.plotfov = plotfov
 
-    def save_tiff(self, filename='sh.tif'):
+    def to_tiff(self, filename):
         utilmpl.mkdir(filename)
         with tifffile.TiffWriter(filename, imagej=True) as tif:
-            tif.save(self.data.astype(np.float32)) # TZCYXS
+            tif.save(self.data.astype(np.float32),
+                     resolution=(1/self.px_dims[0], 1/self.px_dims[1]),
+                     metadata={'unit':'um'}) # TZCYXS
 
     def plot(self, f, fc, ss):
         ax = utilmpl.plot_template(f, fc, shape=self.data.shape, xlabel=self.xlabel,

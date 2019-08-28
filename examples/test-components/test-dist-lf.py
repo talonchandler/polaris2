@@ -17,7 +17,6 @@ log = logging.getLogger('log')
 #         J[i] = 1
 #         l, m = utilsh.j2lm(i)
 #         obj = R3S2toR.xyzJ_single([x,y,z,J], shape=[10,10,4],
-#                                   xlabel='10$\\times$10$\\times$4 $\mu$m${}^3$',
 #                                   title='$\ell='+str(l)+', m='+str(m)+'$')
 #         obj.build_actors()
 #         objs.append(obj)
@@ -47,7 +46,6 @@ for i in tqdm(range(N)):
     jj = phantoms.uniaxial_ellipsoid(1, 0.1, ss)
 
     obj = R3S2toR.xyzj_list([pos, pos2], [jj, jj], shape=[10,10,4],
-                            xlabel='10$\\times$10$\\times$4 $\mu$m${}^3$',
                             title='Uniaxial distribution $a/b = 0.1$')
 
     obj2 = obj.to_xyzJ_list(lmax=2)

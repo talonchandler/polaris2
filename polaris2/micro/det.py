@@ -7,7 +7,7 @@ log = logging.getLogger('log')
 # Simulates a linear dipole imaged by 4f detection system.
 class FourF:
 
-    def __init__(self, NA=1.4, M=63, n0=1.5, lamb=0.546, wpx_real=7.4,
+    def __init__(self, NA=1.2, M=60, n0=1.3, lamb=0.546, wpx_real=6.5,
                  npx=(7*17, 7*17), ss=2, plotfov=10, irrad_title='4$f$ detector irradiance'):
         # Input parameters
         self.NA = NA
@@ -200,7 +200,7 @@ class FourF:
     def precompute_xyzJ_single_to_xy_det(self, dist):
         self.precompute_xyzJ_single_to_xye_det(dist)
         self.h_xyzJ_single_to_xy_det = np.zeros((self.npx[0], self.npx[1], 6), dtype='float32')
-
+        
         # Compute gaunt coeffs
         G = utilsh.gaunt_l1l1_tol0l2()
 
@@ -233,31 +233,44 @@ class FourF:
     # Input: R3S2toR.xyzJ
     # Output: R2toR.xy object
     def xyzJ_to_xy_det(self, xyzJ):
-        self.precompute_XYzJ_to_XY_det(xyzJ.data.shape, xyzJ.vox_dims)
+        
+        # Assume input xy dimensions are <= detector xy dimensions
+        if xyzJ.data.shape[0:2] != self.npx:
+            log.info('Error! The xy dimensions of the xyzJ object must match the xy detector dimensions.')
+            return None
+            
+        # self.precompute_XYzJ_to_XY_det(xyzJ.data.shape, xyzJ.vox_dims)
 
         xyzJ_shift = np.fft.ifftshift(xyzJ.data, axes=(0,1))
-        XYzJ_shift = np.fft.fft2(xyzJ_shift, axes=(0,1)) # FT along xy
+        XYzJ_shift = np.fft.rfft2(xyzJ_shift, axes=(0,1)) # FT along xy
         XY_shift = np.einsum('ijkl,ijkl->ij', self.H_XYzJ_to_XY, XYzJ_shift) # Filter and sum over J and z
-        xy_shift = np.fft.ifft2(XY_shift) # IFT along XY
+
+        xy_shift = np.fft.irfft2(XY_shift, s=xyzJ.data.shape[0:2]) # IFT along XY
         xy = np.fft.fftshift(xy_shift)
         
         return R2toR.xy(np.real(xy),
+                        px_dims=(self.wpx, self.wpx),
                         title=self.irrad_title,
                         fov=[-self.fov/2, self.fov/2],
                         plotfov=[-self.plotfov/2, self.plotfov/2],
                         xlabel=str(self.plotfov)+' $\mu$m')
 
-    def precompute_XYzJ_to_XY_det(self, shape, vox_dims):
-        self.H_XYzJ_to_XY = np.zeros(shape, dtype=np.complex64)
-
+    def precompute_XYzJ_to_XY_det(self, input_shape, input_vox_dims):
+        # Adjust matrix size to account for rfft
+        input_shape_rfft = np.array(input_shape)
+        input_shape_rfft[1] = np.floor(input_shape_rfft[1]/2 + 1)
+        
+        # Fill matrix
         log.info('Computing psfs')
-        for k in tqdm(range(shape[2]//2)):
-            z = (k + 0.5*(shape[2]%2 != 0) - 0.5*shape[2])*vox_dims[-1] # k2z
+        self.H_XYzJ_to_XY = np.zeros(input_shape_rfft, dtype=np.complex64)
+        oddK = (input_shape[2]%2 == 1)
+        for k in trange(int(input_shape[2]/2 + 0.5*oddK)):
+            z = (k + 0.5*oddK - 0.5*input_shape[2])*input_vox_dims[2] # k2z
             self.precompute_xyzJ_single_to_xy_det([0,0,z])
             h_shift = np.fft.ifftshift(self.h_xyzJ_single_to_xy_det, axes=(0,1))
 
             # Exploit symmetry above and below the focal plane
-            self.H_XYzJ_to_XY[:,:,k,:6] = np.fft.fft2(h_shift, axes=(0,1))
+            self.H_XYzJ_to_XY[:,:,k,:6] = np.fft.rfft2(h_shift, axes=(0,1))*np.product(input_vox_dims) # For anisometric voxels
             self.H_XYzJ_to_XY[:,:,-k,:6] = self.H_XYzJ_to_XY[:,:,k,:6]
     
 # Simulates a linear dipole imaged by 4f system with a microlens array. 
@@ -384,28 +397,30 @@ class FourFLF:
                         plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
                         xlabel=str(self.fourf.plotfov)+' $\mu$m')
 
-    # Generates the irradiance pattern due to a dense xyzJ array.
+    # Generates the irradiance pattern on a lfcamera from a dense xyzJ array.
     # This is a faster path than xyzJ_list_to_xy_det
     # Input: R3S2toR.xyzJ
     # Output: R2toR.xy object
     def xyzJ_to_xy_det(self, xyzJ):
 
-        # Precompute 
+        # Precompute forward model matrix
         uvstzJ_shape = (self.nulen, self.ulenpx, self.nulen, self.ulenpx, xyzJ.data.shape[-2], xyzJ.data.shape[-1])
         self.precompute_UvStzJ_to_UvSt_det(uvstzJ_shape, xyzJ.vox_dims)
         
         # Reshape xyzJ to uvstzJ
         uvstzJ = xyzJ.data.reshape(uvstzJ_shape)
 
-        # uvstzJ to UVstzJ (with Fourier shifting)
-        uvstzJ_shift = np.fft.ifftshift(uvstzJ.data, axes=(0,2))
+        # FFT uvstzJ to UvStzJ (with Fourier shifting)
+        uvstzJ_shift = np.fft.ifftshift(uvstzJ, axes=(0,2))
         UvStzJ_shift = np.fft.fftn(uvstzJ_shift, axes=(0,2))
+        # UvStzJ_shift = np.fft.rfftn(uvstzJ_shift, axes=(0,2))
 
-        # Matrix multiplication for microscope
+        # Forward model matrix multiplication 
         UvSt_shift = np.einsum('ijklmnop,iokpmn->ijkl', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
 
-        # FFT to uvst and shift
-        uvst_shift = np.fft.ifftn(UvSt_shift, axes=(0,2))
+        # FFT UvSt to uvst (with Fourier deshifting)
+        uvst_shift = np.fft.ifftn(UvSt_shift, axes=(0,2))        
+        # uvst_shift = np.fft.irfftn(UvSt_shift, s=(uvstzJ.shape[0],)+(uvstzJ.shape[2],), axes=(0,2))
         uvst = np.fft.fftshift(uvst_shift, axes=(0,2))
 
         # Reshape uvst to xy
@@ -417,28 +432,30 @@ class FourFLF:
                         plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
                         xlabel=str(self.fourf.plotfov)+' $\mu$m')
 
-    def precompute_UvStzJ_to_UvSt_det(self, shape, vox_dims):
-        self.H_UvStzJ_to_UvSt_det = np.zeros(shape + (shape[1], shape[3],), dtype=np.complex64)
+    def precompute_UvStzJ_to_UvSt_det(self, input_shape, input_vox_dims):
+        self.H_UvStzJ_to_UvSt_det = np.zeros(input_shape + (input_shape[1], input_shape[3],), dtype=np.complex64)
+        # mat_shape = input_shape[0:2] + (input_shape[2]//2 + 1,) + input_shape[3:] + (input_shape[1], input_shape[3],)
+        # self.H_UvStzJ_to_UvSt_det = np.zeros(mat_shape, dtype=np.complex64)
 
         log.info('Computing psfs')
-        oddI = (shape[1]%2 == 1)
-        oddJ = (shape[3]%2 == 1)
-        oddK = (shape[4]%2 == 1)
-        import pdb; pdb.set_trace()
+        oddI = (input_shape[1]%2 == 1)
+        oddJ = (input_shape[3]%2 == 1)
+        oddK = (input_shape[4]%2 == 1)
         
-        for i in trange(int(shape[1]/2 + 0.5*oddI), desc='Outer loop'):
-            for j in trange(int(shape[3]/2 + 0.5*oddJ), desc='Inner loop', leave=False):
-                for k in range(shape[4]):
-                    x = (i + 0.5*oddI - 0.5*shape[1])*vox_dims[0] # i2x
-                    y = (j + 0.5*oddJ - 0.5*shape[3])*vox_dims[1] # j2y
-                    z = (k + 0.5*oddK - 0.5*shape[4])*vox_dims[2] # k2z
+        for i in trange(int(input_shape[1]/2 + 0.5*oddI), desc='Outer loop'):
+            for j in trange(int(input_shape[3]/2 + 0.5*oddJ), desc='Inner loop', leave=False):
+                for k in range(input_shape[4]):
+                    x = (i + 0.5*oddI - 0.5*input_shape[1])*input_vox_dims[0] # i2x
+                    y = (j + 0.5*oddJ - 0.5*input_shape[3])*input_vox_dims[1] # j2y
+                    z = (k + 0.5*oddK - 0.5*input_shape[4])*input_vox_dims[2] # k2z
                     
                     self.precompute_xyzJ_single_to_xy_det([x,y,z])
-                    h_uvstJ = self.h_xyzJ_single_to_xy_det.reshape(shape[0:4]+(6,))
+                    h_uvstJ = self.h_xyzJ_single_to_xy_det.reshape(input_shape[0:4]+(6,))
                     h_shift = np.fft.ifftshift(h_uvstJ, axes=(0,2))
 
                     # Fill array and exploit symmetry of microlenses
                     entry = np.fft.fft2(h_shift, axes=(0,2))
+                    # entry = np.fft.rfft2(h_shift, axes=(0,2))
                     self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,j] = entry
                     self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,-j] = np.flip(entry, axis=(0,1,2,3))
                     self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,-j] = np.flip(entry, axis=(2,3))
