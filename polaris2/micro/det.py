@@ -309,9 +309,6 @@ class FourFLF:
                          toplabel='$E_x$', bottomlabel='$E_y$')
 
     def precompute_xyzJ_single_to_xye_det(self, dip_pos):
-        # rx, ry, rz, J = dip.data
-        # dip_pos = [rx, ry, rz]
-        
         self.h_xyzJ_single_to_xye_det = np.zeros((self.fourf.npxss, self.fourf.npxss, 2, 3), dtype='complex64')
         
         # Use FourF to calculate electric field in nominal image plane
@@ -402,25 +399,22 @@ class FourFLF:
     # Input: R3S2toR.xyzJ
     # Output: R2toR.xy object
     def xyzJ_to_xy_det(self, xyzJ):
-
-        # Precompute forward model matrix
-        uvstzJ_shape = (self.nulen, self.ulenpx, self.nulen, self.ulenpx, xyzJ.data.shape[-2], xyzJ.data.shape[-1])
-        self.precompute_UvStzJ_to_UvSt_det(uvstzJ_shape, xyzJ.vox_dims)
         
         # Reshape xyzJ to uvstzJ
+        uu, vv, ss, tt, zz, jj, vp, tp = self.H_UvStzJ_to_UvSt_det.shape
+        uvstzJ_shape = (uu, vp, ss, tp, zz, jj)
         uvstzJ = xyzJ.data.reshape(uvstzJ_shape)
 
         # FFT uvstzJ to UvStzJ (with Fourier shifting)
         uvstzJ_shift = np.fft.ifftshift(uvstzJ, axes=(0,2))
         UvStzJ_shift = np.fft.fftn(uvstzJ_shift, axes=(0,2))
-        # UvStzJ_shift = np.fft.rfftn(uvstzJ_shift, axes=(0,2))
 
-        # Forward model matrix multiplication 
-        UvSt_shift = np.einsum('ijklmnop,iokpmn->ijkl', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
+        # Forward model matrix multiplication
+        # Sum over mnop...output order by guess and check!
+        UvSt_shift = np.einsum('ijklmnop,ipkomn->klij', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
 
         # FFT UvSt to uvst (with Fourier deshifting)
-        uvst_shift = np.fft.ifftn(UvSt_shift, axes=(0,2))        
-        # uvst_shift = np.fft.irfftn(UvSt_shift, s=(uvstzJ.shape[0],)+(uvstzJ.shape[2],), axes=(0,2))
+        uvst_shift = np.fft.ifftn(UvSt_shift, axes=(0,2))
         uvst = np.fft.fftshift(uvst_shift, axes=(0,2))
 
         # Reshape uvst to xy
@@ -433,30 +427,28 @@ class FourFLF:
                         xlabel=str(self.fourf.plotfov)+' $\mu$m')
 
     def precompute_UvStzJ_to_UvSt_det(self, input_shape, input_vox_dims):
-        self.H_UvStzJ_to_UvSt_det = np.zeros(input_shape + (input_shape[1], input_shape[3],), dtype=np.complex64)
-        # mat_shape = input_shape[0:2] + (input_shape[2]//2 + 1,) + input_shape[3:] + (input_shape[1], input_shape[3],)
-        # self.H_UvStzJ_to_UvSt_det = np.zeros(mat_shape, dtype=np.complex64)
+        uu, vv, ss, tt, zz, jj = input_shape
+        matrix_shape = (uu, self.ulenpx, ss, self.ulenpx, zz, jj, vv, tt)
+        self.H_UvStzJ_to_UvSt_det = np.zeros(matrix_shape, dtype=np.complex64)
 
         log.info('Computing psfs')
-        oddI = (input_shape[1]%2 == 1)
-        oddJ = (input_shape[3]%2 == 1)
-        oddK = (input_shape[4]%2 == 1)
-        
-        for i in trange(int(input_shape[1]/2 + 0.5*oddI), desc='Outer loop'):
-            for j in trange(int(input_shape[3]/2 + 0.5*oddJ), desc='Inner loop', leave=False):
+        # for i in trange(int(input_shape[1]/2 + 0.5*oddI), desc='Outer loop'):
+        #     for j in trange(int(input_shape[3]/2 + 0.5*oddJ), desc='Inner loop', leave=False):
+        #         for k in range(input_shape[4]):
+        for i in trange(input_shape[1], desc='Outer loop'):
+            for j in trange(input_shape[3], desc='Inner loop', leave=False):
                 for k in range(input_shape[4]):
-                    x = (i + 0.5*oddI - 0.5*input_shape[1])*input_vox_dims[0] # i2x
-                    y = (j + 0.5*oddJ - 0.5*input_shape[3])*input_vox_dims[1] # j2y
-                    z = (k + 0.5*oddK - 0.5*input_shape[4])*input_vox_dims[2] # k2z
-                    
+                    x = (i + 0.5 - 0.5*input_shape[1])*input_vox_dims[0] # i2x
+                    y = (j + 0.5 - 0.5*input_shape[3])*input_vox_dims[1] # j2y
+                    z = (k + 0.5 - 0.5*input_shape[4])*input_vox_dims[2] # k2z
                     self.precompute_xyzJ_single_to_xy_det([x,y,z])
-                    h_uvstJ = self.h_xyzJ_single_to_xy_det.reshape(input_shape[0:4]+(6,))
+                    h_uvstJ = self.h_xyzJ_single_to_xy_det.reshape(matrix_shape[0:4]+(6,))
                     h_shift = np.fft.ifftshift(h_uvstJ, axes=(0,2))
 
                     # Fill array and exploit symmetry of microlenses
                     entry = np.fft.fft2(h_shift, axes=(0,2))
-                    # entry = np.fft.rfft2(h_shift, axes=(0,2))
                     self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,j] = entry
-                    self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,-j] = np.flip(entry, axis=(0,1,2,3))
-                    self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,-j] = np.flip(entry, axis=(2,3))
-                    self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,j] = np.flip(entry, axis=(0,1))
+                    # self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,-j] = np.flip(entry, axis=(0,1,2,3))
+                    # self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,-j] = np.flip(entry, axis=(2,3))
+                    # self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,j] = np.flip(entry, axis=(0,1))
+                print(x,y)

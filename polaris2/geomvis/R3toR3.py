@@ -78,8 +78,9 @@ class xyz_list:
 
         # Color
         cols = np.zeros_like(points_array)
-        cols[0::2] = 255*np.abs(self.data_ijk/max_rad)
-        cols[1::2] = 255*np.abs(self.data_ijk/max_rad)
+        dirs = self.data_ijk/np.linalg.norm(self.data_ijk, axis=-1)[:,np.newaxis]
+        cols[0::2] = 255*np.abs(dirs)
+        cols[1::2] = 255*np.abs(dirs)
         vtk_colors = ns.numpy_to_vtk(cols, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
         vtk_colors.SetName("Colors")
         poly_data.GetPointData().SetScalars(vtk_colors)

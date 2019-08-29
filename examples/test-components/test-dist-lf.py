@@ -35,17 +35,20 @@ log = logging.getLogger('log')
 #     utilmpl.plot([objs, ims, ims2], './basis_functions/'+istr+'.png')
 
 # Ellipsoid spiral
-N = 80
+N = 2
 log.info('Making '+str(N)+' frames')
 for i in tqdm(range(N)):
 
-    pos = phantoms.defocus_path(i/N)
-    pos2 = pos + np.array([2.5,0,0])
-    ss = phantoms.sphere_spiral(i/(N-1))
+    
+    pos = np.array([0.75,-1,0])#phantoms.defocus_path(i/N)
+    if i == 1:
+        pos = -pos
+    #pos2 = #pos + np.array([2.5,0,0])
+    ss = [0,1,0]#phantoms.sphere_spiral(i/(N-1))
 
     jj = phantoms.uniaxial_ellipsoid(1, 0.1, ss)
 
-    obj = R3S2toR.xyzj_list([pos, pos2], [jj, jj], shape=[10,10,4],
+    obj = R3S2toR.xyzj_list([pos], [jj], shape=[10,10,4],
                             title='Uniaxial distribution $a/b = 0.1$')
 
     obj2 = obj.to_xyzJ_list(lmax=2)

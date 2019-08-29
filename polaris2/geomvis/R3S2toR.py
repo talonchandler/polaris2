@@ -73,7 +73,7 @@ class xyzj_list:
     def to_R3toR3_xyz(self, shape):
         xyz = utilsh.fibonacci_sphere(self.data_j.shape[1], xyz=True)
         max_indices = np.argmax(self.data_j, axis=1)
-        xyz_max = xyz[max_indices]*np.max(self.data_j)
+        xyz_max = np.einsum('ij,i->ij', xyz[max_indices], np.max(self.data_j, axis=-1))
         return R3toR3.xyz_list(self.data_xyz, xyz_max, shape=shape,
                                xlabel=self.xlabel, title='Peaks')
 
@@ -149,7 +149,6 @@ class xyzJ_list:
                          title=self.title)
 
     def to_xyzJ(self, xyzJ_shape=[10,10,10,6], vox_dims=[.1,.1,.1]):
-        # out = np.zeros((npx[0], npx[1], npx[2], utilsh.maxl2maxj(lmax)))
         out = np.zeros(xyzJ_shape)
         npx = xyzJ_shape[0:3]
         ijk_count = np.floor(self.data_xyz/vox_dims + (np.array(npx)/2)).astype(np.int)
@@ -196,7 +195,7 @@ class xyzJ:
         log.info('Plotting '+str(ijk.shape[0])+' ODFs.')
 
         # Draw odfs
-        centers = (ijk - 0.5*self.npx)*self.vox_dims # ijk2xyz
+        centers = (ijk - 0.5*self.npx + 0.5)*self.vox_dims # ijk2xyz
         radii = np.einsum('ij,kj->ki', self.B, J_list)
         radii *= self.rad_scale*self.skip_n*np.max(self.vox_dims)/(np.max(radii))
         utilvtk.draw_sphere_field(self.ren, centers, radii)
@@ -227,7 +226,7 @@ class xyzJ:
         skip_mask[::skip_n,::skip_n,::skip_n] = 1
         
         ijk = np.array(np.nonzero(thresh_mask*skip_mask)).T
-        centers = (ijk - 0.5*self.npx)*self.vox_dims # ijk2xyz        
+        centers = (ijk - 0.5*self.npx +  + 0.5)*self.vox_dims # ijk2xyz        
         J_list = self.data[ijk[:,0], ijk[:,1], ijk[:,2], :]
 
         return xyzJ_list(centers, J_list, title=self.title, shape=self.shape)

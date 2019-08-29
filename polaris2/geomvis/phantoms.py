@@ -59,7 +59,19 @@ def uniaxial_ellipsoid(r1, r2, v1, N=2**12):
 # The routine "voxelizes" the sphere by integrating over M points on the sphere.
 def guv(center=[0,0,0], radius=0.5, N=2**10, M=2**10, ellip_ratio=0.5,
         dist_type='ellipsoid'):
-    xyz_guv = utilsh.fibonacci_sphere(M, xyz=True) # Points on guv
+    xyz_guv = utilsh.fibonacci_sphere(M/8, xyz=True) # Points on guv
+
+    # Respect D4 symmetry
+    xyz_guv_flip = np.vstack([xyz_guv[:,1], xyz_guv[:,0], xyz_guv[:,2]]).T
+    xyz_guv = np.vstack([xyz_guv,
+                         xyz_guv*[-1,1,1],
+                         xyz_guv*[1,-1,1],
+                         xyz_guv*[-1,-1,1],
+                         xyz_guv_flip,
+                         xyz_guv_flip*[-1,1,1],
+                         xyz_guv_flip*[1,-1,1],
+                         xyz_guv_flip*[-1,-1,1]])
+    
     xyz_list = (xyz_guv*radius + center) # Scaled and center
     j_list = np.zeros((M, N))
     for m in tqdm(range(M)):

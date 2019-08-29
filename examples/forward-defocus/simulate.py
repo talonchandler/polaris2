@@ -14,8 +14,6 @@ with open('guv-2um.pickle', 'rb') as handle:
 with open('det.pickle', 'rb') as handle:
     det1 = pickle.load(handle)
 
-xyzJ_list.data_J[:,1:] = 0 # Test
-
 xyzJ_list.data_xyz += np.array([0,0,-2.5])
 N = 50
 for i in range(N):

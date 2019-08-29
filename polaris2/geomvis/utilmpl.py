@@ -129,7 +129,7 @@ def plot_template(f, fc, shape=(1,1), xlabel='', ylabel='', clabel='', title='',
         ax0.annotate(xlabel, xy=(1,1), xytext=(acx + (cx+w - acx)/2,cy-h-0.1*fh), textcoords='figure fraction', ha='center', va='center', rotation=0)
 
     # Labels
-    ax0.annotate(title, xy=(1,1), xytext=(cx,cy+hnom+0.05*fh), textcoords='figure fraction', ha='center', va='center', color=color)
+    ax0.annotate(title, xy=(1,1), xytext=(cx,cy+hnom+0.075*fh), textcoords='figure fraction', ha='center', va='center', color=color)
     ax1.annotate(clabel, xy=(1,1), xytext=(cx+wnom+cspace+cwidth+0.1*fw, cy), textcoords='figure fraction', ha='center', va='center', rotation=270)
 
     if len(shape) == 2:
@@ -160,8 +160,8 @@ def c2rgb(z, rmin=0, rmax=1, hue_start=0):
 
 # Labels
 def shape2xlabel(shape):
-    a = '{:.1f}'.format(shape[0])
-    b = '{:.1f}'.format(shape[1])
-    c = '{:.1f}'.format(shape[2])
+    a = '{:.0f}'.format(shape[0])
+    b = '{:.0f}'.format(shape[1])
+    c = '{:.0f}'.format(shape[2])
     return a+'$\\times$'+b+'$\\times$'+c+' $\mu$m${}^3$'
 

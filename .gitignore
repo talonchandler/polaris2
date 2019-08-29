@@ -9,4 +9,5 @@
 *.tiff
 *.avi
 *.png
+*.pickle
 examples/*/*/*

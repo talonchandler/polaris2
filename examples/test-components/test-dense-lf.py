@@ -1,3 +1,4 @@
+import pickle
 from tqdm import tqdm
 import numpy as np
 from polaris2.micro.micro import det
@@ -6,51 +7,52 @@ import logging
 log = logging.getLogger('log')
 
 # Load guv
-# vox_dims = np.array([.1,.1,.1])
-# npx = np.array([119, 119, 40])
-grid_obj = R3S2toR.xyzJ(np.array([0]), title='Dense object')
-grid_obj.from_tiff('../phantoms/guv-2um.tiff')
-grid_obj.build_actors()
+with open('../forward-defocus/guv-2um.pickle', 'rb') as handle:
+    xyzJ_list = pickle.load(handle)
 
-# npx = np.array([119, 119, 5])
-# obj = np.zeros((npx[0], npx[1], npx[2], 6))
-# obj[:,:,:,:6] = grid_obj.data[:,:,5:10,:6]
+xyzJ_list.data_xyz += np.array([1,0,1])
 
-# grid_obj = R3S2toR.xyzJ(obj,
-#                         vox_dims=vox_dims,
-#                         title='Dense object',
-#                         skip_n=2,
-#                         rad_scale=5)
-# grid_obj.build_actors()
+nvxulens = 3 # voxels per ulens side in object space
+npxulens = 17 # pixels per ulens side in data space
+nulens = 7 # number of ulenses
+z_slice = 31
 
-grid_peak = grid_obj.to_R3toR3_xyz(skip_n=1)
+input_shape = (nvxulens*nulens,nvxulens*nulens,z_slice,6)
+input_vox_dims = (17*6.5/60/nvxulens, 17*6.5/60/nvxulens, 0.2)
+xyzJ = xyzJ_list.to_xyzJ(input_shape, input_vox_dims)
+
+xyzJ.build_actors()
+
+xyzJ.to_tiff('./guv.tiff')
+
+# Grid peak
+grid_peak = xyzJ.to_R3toR3_xyz(skip_n=1)
 grid_peak.rad_scale = 0.25
-grid_peak.skip_n = 1
 grid_peak.build_actors()
 
-# Pad object
-temp = np.zeros([101, 101, 25, 15])
-temp[50-22:50+23,50-22:50+23,:,:] = grid_obj.data
-grid_obj.data = temp
+# Normal fourf
+# d1 = det.FourF(npx=(101,101))
+# im1 = d1.xyzJ_to_xy_det(grid_obj)
+# im1.to_tiff('./4f.tiff')
 
-d1 = det.FourF(npx=(101,101))
-im1 = d1.xyzJ_to_xy_det(grid_obj)
-im1.to_tiff('./4f.tiff')
+# LF detector
+d2 = det.FourFLF(irrad_title='Lightfield detector irradiance',
+                 npx=(npxulens*nulens, npxulens*nulens))
+d2.precompute_UvStzJ_to_UvSt_det(input_shape=(nulens,nvxulens,nulens,nvxulens,z_slice,6),
+                                 input_vox_dims=input_vox_dims)
 
-# grid_obj.data = grid_obj.data[0:51,0:51,0:10,:]
-# d2 = det.FourFLF(irrad_title='Lightfield detector irradiance', npx=grid_obj.npx[0:2])
-# d2.precompute_UvStzJ_to_UvSt_det(input_shape=(3,17,3,17,10,6),
-#                                  input_vox_dims=(0.1,0.1,0.1))
-# import pdb; pdb.set_trace()
-# import pickle
-# with open('filename.pickle', 'wb') as handle:
-#     pickle.dump(d2, handle)
+# Save
+import pickle
+with open('filename.pickle', 'wb') as handle:
+    pickle.dump(d2, handle)
 
-# with open('filename.pickle', 'rb') as handle:
-#     d2 = pickle.load(handle)
+# Load
+with open('filename.pickle', 'rb') as handle:
+    d2 = pickle.load(handle)
 
-# im2 = d2.xyzJ_to_xy_det(grid_obj)
-# im2.data /= 100
+# Simulate
+im2 = d2.xyzJ_to_xy_det(xyzJ)
+im2.data /= 100
 
-obj_list = [grid_obj, grid_peak, im1]
+obj_list = [xyzJ, grid_peak, im2]
 utilmpl.plot([obj_list], './test-guv.png', ss=2)

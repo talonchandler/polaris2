@@ -51,7 +51,7 @@ def make_axes():
     axes.SetYAxisLabelText('')
     axes.SetZAxisLabelText('')
     axes.SetTotalLength(1.5, 1.5, 1.5)
-    axes.SetCylinderRadius(0.75 * axes.GetCylinderRadius())
+    axes.SetCylinderRadius(0.75*axes.GetCylinderRadius())
     axes.SetConeRadius(1.5 * axes.GetConeRadius())
     axes.SetSphereRadius(1.5 * axes.GetSphereRadius())
     return axes
