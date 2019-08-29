@@ -10,12 +10,12 @@ log = logging.getLogger('log')
 with open('../forward-defocus/guv-2um.pickle', 'rb') as handle:
     xyzJ_list = pickle.load(handle)
 
-xyzJ_list.data_xyz += np.array([1,0,1])
+xyzJ_list.data_xyz += np.array([1,0,0])
 
 nvxulens = 3 # voxels per ulens side in object space
 npxulens = 17 # pixels per ulens side in data space
-nulens = 7 # number of ulenses
-z_slice = 31
+nulens = 5 # number of ulenses
+z_slice = 22
 
 input_shape = (nvxulens*nulens,nvxulens*nulens,z_slice,6)
 input_vox_dims = (17*6.5/60/nvxulens, 17*6.5/60/nvxulens, 0.2)

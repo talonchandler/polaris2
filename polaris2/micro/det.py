@@ -402,19 +402,20 @@ class FourFLF:
         
         # Reshape xyzJ to uvstzJ
         uu, vv, ss, tt, zz, jj, vp, tp = self.H_UvStzJ_to_UvSt_det.shape
-        uvstzJ_shape = (uu, vp, ss, tp, zz, jj)
+        uvstzJ_shape = (uu, vp, uu, tp, zz, jj)
         uvstzJ = xyzJ.data.reshape(uvstzJ_shape)
 
         # FFT uvstzJ to UvStzJ (with Fourier shifting)
         uvstzJ_shift = np.fft.ifftshift(uvstzJ, axes=(0,2))
-        UvStzJ_shift = np.fft.fftn(uvstzJ_shift, axes=(0,2))
+        UvStzJ_shift = np.fft.rfftn(uvstzJ_shift, axes=(0,2))
 
         # Forward model matrix multiplication
         # Sum over mnop...output order by guess and check!
         UvSt_shift = np.einsum('ijklmnop,ipkomn->klij', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
 
         # FFT UvSt to uvst (with Fourier deshifting)
-        uvst_shift = np.fft.ifftn(UvSt_shift, axes=(0,2))
+        import pdb; pdb.set_trace() 
+        uvst_shift = np.fft.irfftn(UvSt_shift, s=(uu,uu), axes=(2,0))
         uvst = np.fft.fftshift(uvst_shift, axes=(0,2))
 
         # Reshape uvst to xy
@@ -428,7 +429,7 @@ class FourFLF:
 
     def precompute_UvStzJ_to_UvSt_det(self, input_shape, input_vox_dims):
         uu, vv, ss, tt, zz, jj = input_shape
-        matrix_shape = (uu, self.ulenpx, ss, self.ulenpx, zz, jj, vv, tt)
+        matrix_shape = (uu, self.ulenpx, int(np.floor(ss/2 + 1)), self.ulenpx, zz, jj, vv, tt)
         self.H_UvStzJ_to_UvSt_det = np.zeros(matrix_shape, dtype=np.complex64)
 
         log.info('Computing psfs')
@@ -442,13 +443,12 @@ class FourFLF:
                     y = (j + 0.5 - 0.5*input_shape[3])*input_vox_dims[1] # j2y
                     z = (k + 0.5 - 0.5*input_shape[4])*input_vox_dims[2] # k2z
                     self.precompute_xyzJ_single_to_xy_det([x,y,z])
-                    h_uvstJ = self.h_xyzJ_single_to_xy_det.reshape(matrix_shape[0:4]+(6,))
+                    h_uvstJ = self.h_xyzJ_single_to_xy_det.reshape((uu,self.ulenpx,ss,self.ulenpx,jj))
                     h_shift = np.fft.ifftshift(h_uvstJ, axes=(0,2))
 
                     # Fill array and exploit symmetry of microlenses
-                    entry = np.fft.fft2(h_shift, axes=(0,2))
+                    entry = np.fft.rfft2(h_shift, axes=(0,2))
                     self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,j] = entry
                     # self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,-j] = np.flip(entry, axis=(0,1,2,3))
                     # self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,-j] = np.flip(entry, axis=(2,3))
                     # self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,j] = np.flip(entry, axis=(0,1))
-                print(x,y)
