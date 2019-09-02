@@ -45,7 +45,7 @@ def ellipsoid(pradii, paxes, N=2**12):
 # perpedicular radii r2
 # uniaxial direction v1 = [x1, y1, z1]
 def uniaxial_ellipsoid(r1, r2, v1, N=2**12):
-    v1 = np.array(v1)
+    v1 = np.array(v1)/np.linalg.norm(v1)
     v2 = np.random.randn(3)
     v2 -= v2.dot(v1) * v1
     v2 /= np.linalg.norm(v2)

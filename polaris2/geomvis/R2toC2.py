@@ -22,7 +22,7 @@ class xy:
         self.fov = fov
         self.plotfov = plotfov
 
-    def plot(self, f, fc):
+    def plot(self, f, fc, ss):
 
         # Use for placing the title
         axs = utilmpl.plot_template(f, fc, title=self.title, scale_bar=False)
@@ -81,8 +81,9 @@ class xy:
         for i, ax in enumerate([axt, axb]):
             ax.set_xlim(self.plotfov)
             ax.set_ylim(self.plotfov)
-            im = ax.imshow(utilmpl.c2rgb(self.data[:,:,i], rmax=self.colormax), interpolation='nearest',
-                           extent=2*self.fov, origin='lower')
+            image = utilmpl.c2rgb(self.data[:,:,i], rmax=self.colormax)
+            im = ax.imshow(image.swapaxes(0,1),
+                           interpolation='nearest', extent=2*self.fov, origin='lower')
             if self.circle:
                 ax.axis('off')
                 patch = mpl.patches.Circle((0,0), radius=self.plotfov[0], linewidth=0.5, facecolor='none',

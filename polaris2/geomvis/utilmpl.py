@@ -25,7 +25,8 @@ def plot(input_objects, output_file='output.pdf', ss=1):
     for row in range(rows):
         for col in range(cols):
             fc = [col/cols, (rows-row-1)/rows, 1/cols, 1/rows]
-            input_objects[row][col].plot(f, fc, ss)
+            if input_objects[row][col] is not None:
+                input_objects[row][col].plot(f, fc, ss)
             
     f.savefig(output_file, dpi=300*ss)
 

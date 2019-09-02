@@ -150,7 +150,8 @@ def G_real_mult_tensor(Jout, Jin):
 
 # Compute Gaunt coefficient tensor for multiplying real SH coeffs in l=1 band
 def gaunt_l1l1_tol0l2():
-    xyz2m = [-1,1,0]
+    # xyz2m = [-1,1,0]
+    xyz2m = [1,-1,0]
     G = np.zeros((6, 3, 3))
     for i in range(6):
         for j in range(3):

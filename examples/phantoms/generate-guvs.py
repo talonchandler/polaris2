@@ -8,7 +8,7 @@ log = logging.getLogger('log')
 
 log.info('Generating phantom.')
 # Oversampled object (create)
-xyz_list, j_list = phantoms.guv(radius=2.0, ellip_ratio=0.2, M=2**16, dist_type='ellipsoid')
+xyz_list, j_list = phantoms.guv(radius=2.0, ellip_ratio=0.2, M=2**13, dist_type='ellipsoid')
 ss_obj = R3S2toR.xyzj_list(xyz_list, j_list, title='Dense object', rad_scale=0.125)
 
 log.info('Converting phantom to grid.')

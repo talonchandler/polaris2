@@ -5,14 +5,14 @@ import logging
 log = logging.getLogger('log')
 
 class xy:
-    def __init__(self, data, px_dims=[1,1], cmap='gray', xlabel='', title='',
+    def __init__(self, data, px_dims=[1,1], cmap='gray', title='',
                  fov=[0,1], plotfov=[0,1]):
                  
         self.data = data
         self.px_dims = px_dims
 
         self.cmap = cmap
-        self.xlabel = xlabel
+        self.xlabel = '{:.0f}'.format(plotfov[1] - plotfov[0]) + ' $\mu$m'
         self.title = title
 
         self.fov = fov
@@ -39,7 +39,7 @@ class xy:
 
         ax[0].set_xlim(self.plotfov)
         ax[0].set_ylim(self.plotfov)
-        ax[0].imshow(self.data, vmin=vmin, vmax=vmax, cmap=self.cmap,
+        ax[0].imshow(self.data.T, vmin=vmin, vmax=vmax, cmap=self.cmap,
                      extent=2*self.fov,
                      aspect='auto', interpolation='nearest', origin='lower')
 

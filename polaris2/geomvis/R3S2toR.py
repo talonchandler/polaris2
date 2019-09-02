@@ -62,13 +62,11 @@ class xyzj_list:
         ax[0].axis('off')
         ax[1].axis('off')
 
-    def to_xyzJ_list(self, lmax=4):
+    def to_xyzJ_list(self, Jmax=15):
         N = self.data_j.shape[-1]
-        J = utilsh.maxl2maxj(lmax)
-        B = utilsh.calcB(N, J)
+        B = utilsh.calcB(N, Jmax)
         data_J = np.einsum('ij,ki->kj', B, self.data_j)
         return xyzJ_list(self.data_xyz, data_J, shape=self.shape, title=self.title)
-                         
 
     def to_R3toR3_xyz(self, shape):
         xyz = utilsh.fibonacci_sphere(self.data_j.shape[1], xyz=True)
@@ -77,9 +75,9 @@ class xyzj_list:
         return R3toR3.xyz_list(self.data_xyz, xyz_max, shape=shape,
                                xlabel=self.xlabel, title='Peaks')
 
-    def to_xyzJ(self, npx=[10,10,10], vox_dims=[.1,.1,.1], lmax=4):
-        xyzJ_list = self.to_xyzJ_list(lmax=lmax)
-        return xyzJ_list.to_xyzJ(npx=npx, vox_dims=vox_dims, lmax=lmax)
+    def to_xyzJ(self, xyzJ_shape=[10,10,10,6], vox_dims=[.1,.1,.1]):        
+        xyzJ_list = self.to_xyzJ_list(Jmax=xyzJ_shape[-1])
+        return xyzJ_list.to_xyzJ(xyzJ_shape=xyzJ_shape, vox_dims=vox_dims, lmax=lmax)
         
 # Dipole distribution at a single position in the form
 # [x0,y0,z0,[J0, J1, ..., JN] where [J0, ..., JN] are even spherical harmonic

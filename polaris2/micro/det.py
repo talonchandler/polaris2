@@ -47,14 +47,14 @@ class FourF:
     # Based on: Backer, A. S., & Moerner, W. E. (2014)
     # http://dx.doi.org/10.1021/jp501778z
     def xyzj_single_to_xye_bfp(self, dip):
-        rx, ry, rz, sx, sy, sz = dip.data
-        dip_pos = [rx,ry,rz]
+        dip_pos = dip.data_xyz[0]
+        dip_orientation = dip.data_j[0]
         
         # Precompute self.h_xyzJ_single_to_xye
         self.precompute_xyzJ_single_to_xye_bfp(dip_pos)
         
         # Matrix multiplication
-        out = np.einsum('ijkl,l->ijk', self.h_xyzJ_single_to_xye_bfp, np.array([sx,sy,sz]))
+        out = np.einsum('ijkl,l->ijk', self.h_xyzJ_single_to_xye_bfp, dip_orientation)
 
         # Return BFP
         return R2toC2.xy(out,
@@ -72,7 +72,7 @@ class FourF:
         x = np.linspace(self.bfpmin, self.bfpmax, self.npxss)
         y = np.linspace(self.bfpmin, self.bfpmax, self.npxss)
 
-        taux, tauy = np.meshgrid(x, y)
+        taux, tauy = np.meshgrid(x, y, indexing='ij')
         tauphi = np.arctan2(tauy, taux)
         abstau = np.sqrt(taux**2 + tauy**2)
         rho = abstau/self.num
@@ -134,15 +134,14 @@ class FourF:
     # Input: R3S2toR.xyzj_list with a single entry
     # Output: R2toC2.xy object
     def xyzj_single_to_xye_det(self, dip):
-        rx, ry, rz, sx, sy, sz = dip.data
-        dip_pos = rx, ry, rz
+        dip_pos = dip.data_xyz[0]
+        dip_orientation = dip.data_j[0]
         
         # Precompute self.h_xyzJ_single_to_xye
         self.precompute_xyzJ_single_to_xye_det(dip_pos)
         
         # Matrix multiplication
-        
-        out = np.einsum('ijkl,l->ijk', self.h_xyzJ_single_to_xye_det, np.array([sx,sy,sz]))
+        out = np.einsum('ijkl,l->ijk', self.h_xyzJ_single_to_xye_det, dip_orientation)
 
         return R2toC2.xy(out,
                          fov=[-self.fov/2, self.fov/2],
@@ -173,8 +172,7 @@ class FourF:
         return R2toR.xy(irrpx, 
                         title=self.irrad_title,
                         fov=[-self.fov/2, self.fov/2],
-                        plotfov=[-self.plotfov/2, self.plotfov/2],
-                        xlabel=str(self.plotfov)+' $\mu$m')
+                        plotfov=[-self.plotfov/2, self.plotfov/2])
 
     # Generates the irradiance pattern due to a single dipole
     # This is an abstraction over the main functions in this class
@@ -194,8 +192,7 @@ class FourF:
         return R2toR.xy(out, 
                         title=self.irrad_title,
                         fov=[-self.fov/2, self.fov/2],
-                        plotfov=[-self.plotfov/2, self.plotfov/2],
-                        xlabel=str(self.plotfov)+' $\mu$m')
+                        plotfov=[-self.plotfov/2, self.plotfov/2])
 
     def precompute_xyzJ_single_to_xy_det(self, dist):
         self.precompute_xyzJ_single_to_xye_det(dist)
@@ -225,8 +222,7 @@ class FourF:
         return R2toR.xy(out, 
                         title=self.irrad_title,
                         fov=[-self.fov/2, self.fov/2],
-                        plotfov=[-self.plotfov/2, self.plotfov/2],
-                        xlabel=str(self.plotfov)+' $\mu$m')
+                        plotfov=[-self.plotfov/2, self.plotfov/2])
 
     # Generates the irradiance pattern due to a dense xyzJ array.
     # This is a faster path than xyzJ_list_to_xy_det
@@ -292,14 +288,14 @@ class FourFLF:
     # Input: R3S2toR.xyzj_list with a single entry
     # Output: R2toR.xy object
     def xyzj_single_to_xye_det(self, dip):
-        rx, ry, rz, sx, sy, sz = dip.data
-        dip_pos = [rx, ry, rz]
+        dip_pos = dip.data_xyz[0]
+        dip_orientation = dip.data_j[0]
         
         # Precompute self.h_xyzJ_single_to_xye
         self.precompute_xyzJ_single_to_xye_det(dip_pos)
         
         # Matrix multiplication
-        out = np.einsum('ijkl,l->ijk', self.h_xyzJ_single_to_xye_det, np.array([sx,sy,sz]))
+        out = np.einsum('ijkl,l->ijk', self.h_xyzJ_single_to_xye_det, dip_orientation)
 
         return R2toC2.xy(out,
                          fov=[-self.fourf.fov/2, self.fourf.fov/2],
@@ -360,8 +356,7 @@ class FourFLF:
         return R2toR.xy(out, 
                         title='Lightfield detector irradiance',
                         fov=[-self.fourf.fov/2, self.fourf.fov/2],
-                        plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
-                        xlabel=str(self.fourf.plotfov)+' $\mu$m')
+                        plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2])
 
     def precompute_xyzJ_single_to_xy_det(self, dist):
         self.precompute_xyzJ_single_to_xye_det(dist)
@@ -391,8 +386,7 @@ class FourFLF:
         return R2toR.xy(out, 
                         title=self.fourf.irrad_title,
                         fov=[-self.fourf.fov/2, self.fourf.fov/2],
-                        plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
-                        xlabel=str(self.fourf.plotfov)+' $\mu$m')
+                        plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2])
 
     # Generates the irradiance pattern on a lfcamera from a dense xyzJ array.
     # This is a faster path than xyzJ_list_to_xy_det
@@ -411,21 +405,21 @@ class FourFLF:
 
         # Forward model matrix multiplication
         # Sum over mnop...output order by guess and check!
-        UvSt_shift = np.einsum('ijklmnop,ipkomn->klij', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
+        # UvSt_shift = np.einsum('ijklmnop,ipkomn->ijkl', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
+        UvSt_shift = np.einsum('ijklmnop,iokpmn->ijkl', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
 
         # FFT UvSt to uvst (with Fourier deshifting)
-        import pdb; pdb.set_trace() 
-        uvst_shift = np.fft.irfftn(UvSt_shift, s=(uu,uu), axes=(2,0))
+        uvst_shift = np.fft.irfftn(UvSt_shift, s=(uu,uu), axes=(0,2))
         uvst = np.fft.fftshift(uvst_shift, axes=(0,2))
 
         # Reshape uvst to xy
         xy = uvst.reshape(self.fourf.npx[0], self.fourf.npx[0])
 
-        return R2toR.xy(np.real(xy),
+        return R2toR.xy(xy,
+                        px_dims=2*(xyzJ.vox_dims[0]*vp/vv,),
                         title=self.fourf.irrad_title,
                         fov=[-self.fourf.fov/2, self.fourf.fov/2],
-                        plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2],
-                        xlabel=str(self.fourf.plotfov)+' $\mu$m')
+                        plotfov=[-self.fourf.fov/2, self.fourf.fov/2])
 
     def precompute_UvStzJ_to_UvSt_det(self, input_shape, input_vox_dims):
         uu, vv, ss, tt, zz, jj = input_shape
@@ -433,9 +427,6 @@ class FourFLF:
         self.H_UvStzJ_to_UvSt_det = np.zeros(matrix_shape, dtype=np.complex64)
 
         log.info('Computing psfs')
-        # for i in trange(int(input_shape[1]/2 + 0.5*oddI), desc='Outer loop'):
-        #     for j in trange(int(input_shape[3]/2 + 0.5*oddJ), desc='Inner loop', leave=False):
-        #         for k in range(input_shape[4]):
         for i in trange(input_shape[1], desc='Outer loop'):
             for j in trange(input_shape[3], desc='Inner loop', leave=False):
                 for k in range(input_shape[4]):
@@ -443,12 +434,40 @@ class FourFLF:
                     y = (j + 0.5 - 0.5*input_shape[3])*input_vox_dims[1] # j2y
                     z = (k + 0.5 - 0.5*input_shape[4])*input_vox_dims[2] # k2z
                     self.precompute_xyzJ_single_to_xy_det([x,y,z])
+                    
                     h_uvstJ = self.h_xyzJ_single_to_xy_det.reshape((uu,self.ulenpx,ss,self.ulenpx,jj))
                     h_shift = np.fft.ifftshift(h_uvstJ, axes=(0,2))
-
-                    # Fill array and exploit symmetry of microlenses
                     entry = np.fft.rfft2(h_shift, axes=(0,2))
+
                     self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,j] = entry
-                    # self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,-j] = np.flip(entry, axis=(0,1,2,3))
-                    # self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,-j] = np.flip(entry, axis=(2,3))
-                    # self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,-i,j] = np.flip(entry, axis=(0,1))
+
+    # IN PROGRESS
+    # Generates the pseudoinverse solution
+    # Requires self.H_UvStzJ_to_UvSt_det to have been precomputed
+    # Input: R3S2toR.xy
+    # Output: R2toR.xyzJ object
+    def pinv(self, xy):
+        U, v, S, t, z, J, vp, sp = self.H_UvStzJ_to_UvSt_det.shape
+        sort = np.moveaxis(self.H_UvStzJ_to_UvSt_det, [0,2,1,3,6,7,4,5], [0,1,2,3,4,5,6,7])
+        InvOI = sort.reshape((U*S, v*t, vp*sp*z*J))
+        Inv, O, I = InvOI.shape
+        K = np.min([I,O])
+        UU = np.zeros((Inv, K, O), dtype=np.complex64)
+        SS = np.zeros((Inv, K), dtype=np.float32)
+        VV = np.zeros((Inv, K, I), dtype=np.complex64)
+        log.info('Computing SVD')
+        for i in tqdm(range(Inv)):
+            uu, ss, vv = np.linalg.svd(InvOI[i,:,:], full_matrices=False)
+            UU[i,:] = uu            
+            SS[i,:] = ss
+            VV[i,:] = vv
+
+        UUall = UU.reshape((U,S,v,t,v,t))
+        SSall = SS.reshape((U,S,v,t))
+        VVall = VV.reshape((U,S,v,t,vp,sp,z,J))
+
+        # UUout = np.moveaxis(UUall, 
+
+        # # Compare
+            
+        # import pdb; pdb.set_trace() 

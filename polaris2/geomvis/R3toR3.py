@@ -63,8 +63,7 @@ class xyz_list:
         tube_filter = vtk.vtkTubeFilter()
         tube_filter.SetInputData(poly_data)
         tube_filter.SetNumberOfSides(50)
-        tube_filter.SetRadius(0.03)
-        # tube_filter.SetVaryRadiusToVaryRadiusByScalar() # Possible TODO
+        tube_filter.SetRadius(1/np.min(self.shape))
         tube_filter.CappingOn()
         tube_filter.Update()
 

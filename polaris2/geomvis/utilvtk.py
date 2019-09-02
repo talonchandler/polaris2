@@ -56,7 +56,7 @@ def make_axes():
     axes.SetSphereRadius(1.5 * axes.GetSphereRadius())
     return axes
 
-def draw_unlit_line(ren, x1, y1, z1, x2, y2, z2, color=[0,0,0], width=10):
+def draw_unlit_line(ren, x1, y1, z1, x2, y2, z2, color=[0,0,0], width=1):
     line = vtk.vtkLineSource()
     line.SetPoint1(x1,y1,z1)
     line.SetPoint2(x2,y2,z2)
@@ -73,8 +73,9 @@ def draw_unlit_line(ren, x1, y1, z1, x2, y2, z2, color=[0,0,0], width=10):
     # Create tube mapper and actor (filtered line)
     tubef = vtk.vtkTubeFilter()
     tubef.SetInputConnection(line.GetOutputPort())
-    tubef.SetRadius(0.03)
+    tubef.SetRadius(0.05*width)
     tubef.SetNumberOfSides(50);
+    tubef.CappingOn()
     tubef.Update()
 
     tubem = vtk.vtkPolyDataMapper()
@@ -87,34 +88,37 @@ def draw_unlit_line(ren, x1, y1, z1, x2, y2, z2, color=[0,0,0], width=10):
 
 def draw_axes(ren, x, y, z):
     dx = x/10
-    zz = np.min([x, y, z])/100
-    draw_unlit_line(ren,-x/2+zz,-y/2+zz,-z/2+zz, -x/2+dx+zz,-y/2+zz,-z/2+zz, color=[1,0,0], width=15)
-    draw_unlit_line(ren,-x/2+zz,-y/2+zz,-z/2+zz, -x/2+zz,-y/2+dx+zz,-z/2+zz, color=[0,1,0], width=15)
-    draw_unlit_line(ren,-x/2+zz,-y/2+zz,-z/2+zz, -x/2+zz,-y/2+zz,-z/2+dx+zz, color=[0,0,1], width=15)
+    zz = 0#np.min([x, y, z])/100
+    width = 0.2*np.min([x,y,z])
+    draw_unlit_line(ren,-x/2+zz,-y/2+zz,-z/2+zz, -x/2+dx+zz,-y/2+zz,-z/2+zz, color=[1,0,0], width=width)
+    draw_unlit_line(ren,-x/2+zz,-y/2+zz,-z/2+zz, -x/2+zz,-y/2+dx+zz,-z/2+zz, color=[0,1,0], width=width)
+    draw_unlit_line(ren,-x/2+zz,-y/2+zz,-z/2+zz, -x/2+zz,-y/2+zz,-z/2+dx+zz, color=[0,0,1], width=width)
 
 def draw_outer_box(ren, x, y, z, invert=False):
     if invert:
         color = [0.7, 0.7, 0.7]
     else:
         color = [0, 0, 0]
+        
+    width = 0.15*np.min([x,y,z])
     
-    # Botton layer
-    draw_unlit_line(ren,-x/2,-y/2,-z/2, +x/2,-y/2,-z/2, color=color)
-    draw_unlit_line(ren,+x/2,-y/2,-z/2, +x/2,+y/2,-z/2, color=color)
-    draw_unlit_line(ren,+x/2,+y/2,-z/2, -x/2,+y/2,-z/2, color=color)
-    draw_unlit_line(ren,-x/2,+y/2,-z/2, -x/2,-y/2,-z/2, color=color)
+    # Bottom layer
+    draw_unlit_line(ren,-x/2,-y/2,-z/2, +x/2,-y/2,-z/2, color=color, width=width)
+    draw_unlit_line(ren,+x/2,-y/2,-z/2, +x/2,+y/2,-z/2, color=color, width=width)
+    draw_unlit_line(ren,+x/2,+y/2,-z/2, -x/2,+y/2,-z/2, color=color, width=width)
+    draw_unlit_line(ren,-x/2,+y/2,-z/2, -x/2,-y/2,-z/2, color=color, width=width)
 
     # Top layer
-    draw_unlit_line(ren,-x/2,-y/2,+z/2, +x/2,-y/2,+z/2, color=color)
-    draw_unlit_line(ren,+x/2,-y/2,+z/2, +x/2,+y/2,+z/2, color=color)
-    draw_unlit_line(ren,+x/2,+y/2,+z/2, -x/2,+y/2,+z/2, color=color)
-    draw_unlit_line(ren,-x/2,+y/2,+z/2, -x/2,-y/2,+z/2, color=color)
+    draw_unlit_line(ren,-x/2,-y/2,+z/2, +x/2,-y/2,+z/2, color=color, width=width)
+    draw_unlit_line(ren,+x/2,-y/2,+z/2, +x/2,+y/2,+z/2, color=color, width=width)
+    draw_unlit_line(ren,+x/2,+y/2,+z/2, -x/2,+y/2,+z/2, color=color, width=width)
+    draw_unlit_line(ren,-x/2,+y/2,+z/2, -x/2,-y/2,+z/2, color=color, width=width)
 
     # Sides
-    draw_unlit_line(ren,-x/2,-y/2,-z/2, -x/2,-y/2,+z/2, color=color)
-    draw_unlit_line(ren,+x/2,-y/2,-z/2, +x/2,-y/2,+z/2, color=color)
-    draw_unlit_line(ren,-x/2,+y/2,-z/2, -x/2,+y/2,+z/2, color=color)
-    draw_unlit_line(ren,+x/2,+y/2,-z/2, +x/2,+y/2,+z/2, color=color)
+    draw_unlit_line(ren,-x/2,-y/2,-z/2, -x/2,-y/2,+z/2, color=color, width=width)
+    draw_unlit_line(ren,+x/2,-y/2,-z/2, +x/2,-y/2,+z/2, color=color, width=width)
+    draw_unlit_line(ren,-x/2,+y/2,-z/2, -x/2,+y/2,+z/2, color=color, width=width)
+    draw_unlit_line(ren,+x/2,+y/2,-z/2, +x/2,+y/2,+z/2, color=color, width=width)
 
 def draw_origin_dot(ren):
     dot = vtk.vtkSphereSource()
@@ -204,8 +208,8 @@ def draw_sphere_field(ren, centers, radii, plot_negative=True):
             cols[:,1] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
             cols[:,2] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
         else: # Blue to white
-            cols[:,0] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
-            cols[:,1] = 255*(1-iradiif/(np.max(iradiif) + 1e-5))
+            cols[:,0] = 255*(iradiif/(np.max(iradiif) + 1e-5))
+            cols[:,1] = 255*(iradiif/(np.max(iradiif) + 1e-5))
         vtk_colors = numpy_support.numpy_to_vtk(cols, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
         polydata.GetPointData().SetScalars(vtk_colors)
 
