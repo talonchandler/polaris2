@@ -7,7 +7,7 @@ class xyz:
         self.data = data
 
         self.shape = data.shape*np.array(vox_dims)
-        self.vox_dims = vox_dims
+        self.vox_dims = np.array(vox_dims)
         self.invert = invert
         self.xlabel = utilmpl.shape2xlabel(self.shape)
         self.title = title
@@ -58,17 +58,19 @@ class xyz:
         # The mapper / ray cast function know how to render the data
         volumeMapper = vtk.vtkGPUVolumeRayCastMapper()
         volumeMapper.SetBlendModeToMaximumIntensity()
-        volumeMapper.SetSampleDistance(0.1)
+        volumeMapper.SetSampleDistance(0.05)
         volumeMapper.SetAutoAdjustSampleDistances(0)
         volumeMapper.SetInputConnection(dataImporter.GetOutputPort())
 
         # The class vtkVolume is used to pair the preaviusly declared volume
         # as well as the properties to be used when rendering that volume.
         volume = vtk.vtkVolume()
+        volume.UseBoundsOff()
         volume.SetMapper(volumeMapper)
         volume.SetProperty(volumeProperty)
-        volume.SetPosition(*-self.shape/2)
+        volume.SetPosition(*-self.shape/2 + self.vox_dims/2)
         volume.SetScale(*self.vox_dims)
+        # TODO: Fix bug where edge voxels appear "truncated"
 
         if self.invert:
             self.ren.SetBackground([0,0,0])

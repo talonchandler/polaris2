@@ -7,6 +7,7 @@
 # Results
 *.txt
 *.tiff
+*.tif
 *.avi
 *.png
 *.pickle

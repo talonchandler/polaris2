@@ -77,7 +77,7 @@ class xyzj_list:
 
     def to_xyzJ(self, xyzJ_shape=[10,10,10,6], vox_dims=[.1,.1,.1]):        
         xyzJ_list = self.to_xyzJ_list(Jmax=xyzJ_shape[-1])
-        return xyzJ_list.to_xyzJ(xyzJ_shape=xyzJ_shape, vox_dims=vox_dims, lmax=lmax)
+        return xyzJ_list.to_xyzJ(xyzJ_shape=xyzJ_shape, vox_dims=vox_dims)
         
 # Dipole distribution at a single position in the form
 # [x0,y0,z0,[J0, J1, ..., JN] where [J0, ..., JN] are even spherical harmonic
@@ -218,10 +218,10 @@ class xyzJ:
         ax[0].axis('off')
         ax[1].axis('off')
 
-    def to_xyzJ_list(self, threshold=0, skip_n=1):
-        thresh_mask = self.data[:,:,:,0] > threshold
+    def to_xyzJ_list(self):
+        thresh_mask = self.data[:,:,:,0] > self.threshold
         skip_mask = np.zeros_like(thresh_mask, dtype=np.bool)
-        skip_mask[::skip_n,::skip_n,::skip_n] = 1
+        skip_mask[::self.skip_n,::self.skip_n,::self.skip_n] = 1
         
         ijk = np.array(np.nonzero(thresh_mask*skip_mask)).T
         centers = (ijk - 0.5*self.npx +  + 0.5)*self.vox_dims # ijk2xyz        
@@ -229,8 +229,8 @@ class xyzJ:
 
         return xyzJ_list(centers, J_list, title=self.title, shape=self.shape)
 
-    def to_R3toR3_xyz(self, threshold=0, skip_n=1, N=2**10):
-        xyzJ_list = self.to_xyzJ_list(threshold, skip_n)
+    def to_R3toR3_xyz(self, N=2**10):
+        xyzJ_list = self.to_xyzJ_list()
         xyzj_list = xyzJ_list.to_xyzj_list(N)
         return xyzj_list.to_R3toR3_xyz(shape=self.shape)
 

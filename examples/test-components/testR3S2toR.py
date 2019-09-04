@@ -16,15 +16,15 @@ viz_obj = R3S2toR.xyzj_list(xyz_list, j_list,
                             shape=vox_dims*npx,
                             title='Dense object',
                             rad_scale=0.125)
-peaks = viz_obj.to_R3toR3_xyz()
+peaks = viz_obj.to_R3toR3_xyz(shape=vox_dims*npx)
 
 # Oversampled object (create)
-xyz_list, j_list = phantoms.guv(radius=1.9, ellip_ratio=0.3, M=2**16, dist_type='ellipsoid')
+xyz_list, j_list = phantoms.guv(radius=1.9, ellip_ratio=0.3, M=2**14, dist_type='ellipsoid')
 ss_obj = R3S2toR.xyzj_list(xyz_list, j_list,
                            title='Dense object',
                            rad_scale=0.125)
 log.info('Converting phantom to grid.')
-grid_obj = ss_obj.to_xyzJ(npx=npx, vox_dims=vox_dims, lmax=4)
+grid_obj = ss_obj.to_xyzJ(xyzJ_shape=[41,41,21,6], vox_dims=vox_dims)
 grid_obj.to_tiff('./guv.tiff')
 
 

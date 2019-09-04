@@ -404,8 +404,7 @@ class FourFLF:
         UvStzJ_shift = np.fft.rfftn(uvstzJ_shift, axes=(0,2))
 
         # Forward model matrix multiplication
-        # Sum over mnop...output order by guess and check!
-        # UvSt_shift = np.einsum('ijklmnop,ipkomn->ijkl', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
+        # Sum over mnop
         UvSt_shift = np.einsum('ijklmnop,iokpmn->ijkl', self.H_UvStzJ_to_UvSt_det, UvStzJ_shift)
 
         # FFT UvSt to uvst (with Fourier deshifting)
@@ -446,10 +445,12 @@ class FourFLF:
     # Requires self.H_UvStzJ_to_UvSt_det to have been precomputed
     # Input: R3S2toR.xy
     # Output: R2toR.xyzJ object
-    def pinv(self, xy):
-        U, v, S, t, z, J, vp, sp = self.H_UvStzJ_to_UvSt_det.shape
+    def pinv(self, xy, out_vox_dims=[.1,.1,.1]):
+
+        # Compute SVD (for precomputation later)
+        U, v, S, t, z, J, vp, tp = self.H_UvStzJ_to_UvSt_det.shape
         sort = np.moveaxis(self.H_UvStzJ_to_UvSt_det, [0,2,1,3,6,7,4,5], [0,1,2,3,4,5,6,7])
-        InvOI = sort.reshape((U*S, v*t, vp*sp*z*J))
+        InvOI = sort.reshape((U*S, v*t, vp*tp*z*J))
         Inv, O, I = InvOI.shape
         K = np.min([I,O])
         UU = np.zeros((Inv, K, O), dtype=np.complex64)
@@ -464,10 +465,24 @@ class FourFLF:
 
         UUall = UU.reshape((U,S,v,t,v,t))
         SSall = SS.reshape((U,S,v,t))
-        VVall = VV.reshape((U,S,v,t,vp,sp,z,J))
+        VVall = VV.reshape((U,S,v,t,vp,tp,z,J))
 
-        # UUout = np.moveaxis(UUall, 
+        # Resort and FT data
+        uvst = xy.data.reshape((U,v,U,t)).astype('float32')
+        uvst_shift = np.fft.ifftshift(uvst, axes=(0,2))
+        UvSt_shift = np.fft.rfftn(uvst_shift, axes=(0,2))
 
-        # # Compare
-            
-        # import pdb; pdb.set_trace() 
+        # Reconstruct
+        log.info('Applying pseudoinverse operator')
+        UvStzJ_shift = np.einsum('ikmnopqr,ikmn,ikjlmn,ijkl->iokpqr', VVall, 1/SSall, UUall, UvSt_shift)
+
+        # FFT UvSt to uvst (with Fourier deshifting)
+        uvstzJ_shift = np.fft.irfftn(UvStzJ_shift, s=(U,U), axes=(0,2))
+        uvstzJ = np.fft.fftshift(uvstzJ_shift, axes=(0,2))
+
+        # Reshape uvst to xy
+        xyzJ = uvstzJ.reshape((U*vp, U*vp, z, J))
+
+        xyzJ = np.flip(xyzJ, axis=2) # Kludge for now. I think uvst is accidentally transposed.
+        
+        return R3S2toR.xyzJ(xyzJ, vox_dims=out_vox_dims, title='Reconstructed object')
