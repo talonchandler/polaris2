@@ -25,9 +25,9 @@ xyzJ.skip_n = 1
 xyzJ.rad_scale = 1.5
 
 # Testing
-xyzJ.data[:,:,:,:] = 0
-xyzJ.data[10,10,22,3] = 1
-xyzJ.data[10,10,22,0] = 1
+# xyzJ.data[:,:,:,] = 0
+# xyzJ.data[10,10,22,3] = 1
+# xyzJ.data[10,10,22,0] = 1
 
 xyzJ.build_actors()
 
@@ -46,10 +46,12 @@ grid_int.build_actors()
 # im1.to_tiff('./4f.tiff')
 
 # # LF detector
-# d2 = det.FourFLF(irrad_title='Lightfield detector irradiance',
-#                  npx=(npxulens*nulens, npxulens*nulens))
-# d2.precompute_UvStzJ_to_UvSt_det(input_shape=(nulens,nvxulens,nulens,nvxulens,z_slice,6),
-#                                  input_vox_dims=input_vox_dims)
+# d2 = det.FourFLF(npx=(npxulens*nulens, npxulens*nulens))
+
+# d2.precompute_fwd(input_shape=(nulens,nvxulens,nulens,nvxulens,z_slice,6),
+#                   input_vox_dims=input_vox_dims)
+
+# d2.precompute_pinv()
 
 # # Save
 # import pickle
@@ -61,28 +63,30 @@ with open('filename.pickle', 'rb') as handle:
     d2 = pickle.load(handle)
 
 # Simulate
-im2 = d2.xyzJ_to_xy_det(xyzJ)
+# im2 = d2.xyzJ_to_xy_det(xyzJ)
+im2 = d2.fwd(xyzJ)
 im2.to_tiff('./out.tif')
 
 # Reconstruct
+# d2.precompute_pinv(eta=0)
 xyzJ_recon = d2.pinv(im2, out_vox_dims=input_vox_dims)
 xyzJ_recon.to_tiff('./recon.tif')
 
 # Threshold
-xyzJ_recon.threshold = 0.2*np.max(xyzJ_recon.data)
+xyzJ_recon.threshold = 0.3*np.max(xyzJ_recon.data)
 
 # Convert to other visuals
 grid_peak_recon = xyzJ_recon.to_R3toR3_xyz()
 grid_int_recon = xyzJ_recon.to_R3toR_xyz()
 
 xyzJ_recon.build_actors()
-grid_peak_recon.rad_scale = 3
+grid_peak_recon.rad_scale = 1
 grid_peak_recon.build_actors()
 grid_int_recon.build_actors()
 
 # Calculate im3
-im3 = d2.xyzJ_to_xy_det(xyzJ_recon)
-im3.to_tiff('./HH+Hf.tif')
+# im3 = d2.xyzJ_to_xy_det(xyzJ_recon)
+im3 = d2.fwd(xyzJ_recon)
 
 # Titles
 xyzJ.title = '$\mathbf{f}$'

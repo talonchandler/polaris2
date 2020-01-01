@@ -16,6 +16,7 @@ def mkdir(filename):
 
 # Make figure from grid of geomvis objects
 def plot(input_objects, output_file='output.pdf', ss=1):
+    log.info('Writing '+output_file)
     mkdir(output_file)
     
     rows = len(input_objects)
@@ -45,9 +46,7 @@ def plot_template(f, fc, shape=(1,1), xlabel='', ylabel='', clabel='', title='',
                                     transform=f.transFigure, figure=f)])
     else:
         color='black'
-    
-    
-
+        
     # Set precise positions of axes
     wnom = 0.375*fw
     hnom = 0.375*fh

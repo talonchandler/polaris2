@@ -29,7 +29,7 @@ class xyz_list:
         log.info('Plotting '+str(M)+' peaks.')        
         
         # Calculate points
-        max_rad = np.max(np.linalg.norm(self.data_xyz - self.data_ijk, axis=-1))
+        max_rad = np.max(np.linalg.norm(self.data_ijk, axis=-1))
         r = self.rad_scale/max_rad
         starts = self.data_xyz - r*self.data_ijk
         ends = self.data_xyz + r*self.data_ijk
@@ -63,7 +63,7 @@ class xyz_list:
         tube_filter = vtk.vtkTubeFilter()
         tube_filter.SetInputData(poly_data)
         tube_filter.SetNumberOfSides(50)
-        tube_filter.SetRadius(1/np.min(self.shape))
+        tube_filter.SetRadius(0.5/np.min(self.shape))
         tube_filter.CappingOn()
         tube_filter.Update()
 
@@ -87,12 +87,13 @@ class xyz_list:
         # Set actor
         actor = vtk.vtkActor()
         actor.SetMapper(poly_mapper)
-        actor.GetProperty().SetLineWidth(2)
+        # actor.GetProperty().SetLineWidth(2)
         # actor.GetProperty().SetLighting(0)
         actor.GetProperty().SetAmbient(0.5)
         self.ren.AddActor(actor)
 
         # Draw extras
+        utilvtk.draw_origin_dot(self.ren)        
         utilvtk.draw_outer_box(self.ren, *self.shape)
         utilvtk.draw_axes(self.ren, *self.shape)
         

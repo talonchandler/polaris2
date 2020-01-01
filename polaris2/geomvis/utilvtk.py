@@ -140,8 +140,8 @@ def draw_double_arrow(ren, pos, direction):
         arrowm.SetInputConnection(arrow.GetOutputPort())
         arrowa = vtk.vtkActor()
         arrowa.SetMapper(arrowm)
-        arrowa.GetProperty().SetColor([.5,.5,.5])
-        arrowa.SetScale(1)
+        arrowa.GetProperty().SetColor([1,0,0])
+        arrowa.SetScale(np.linalg.norm(direction))
 
         tp = utilsh.xyz2tp(*direction)
         arrowa.RotateWXYZ(-90, 0, 1, 0) # Align with Z axis

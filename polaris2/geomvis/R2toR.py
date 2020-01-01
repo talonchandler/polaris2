@@ -6,7 +6,7 @@ log = logging.getLogger('log')
 
 class xy:
     def __init__(self, data, px_dims=[1,1], cmap='gray', title='',
-                 fov=[0,1], plotfov=[0,1]):
+                 fov=[0,1], plotfov=[0,1], vmin=None, vmax=None):
                  
         self.data = data
         self.px_dims = px_dims
@@ -17,6 +17,9 @@ class xy:
 
         self.fov = fov
         self.plotfov = plotfov
+
+        self.vmin = vmin
+        self.vmax = vmax
 
     def to_tiff(self, filename):
         utilmpl.mkdir(filename)
@@ -36,6 +39,10 @@ class xy:
         elif self.cmap is 'bwr':
             vmax = np.max(np.abs(self.data))
             vmin = -vmax
+
+        if self.vmax is not None:
+            vmax = self.vmax
+            vmin = self.vmin
 
         ax[0].set_xlim(self.plotfov)
         ax[0].set_ylim(self.plotfov)

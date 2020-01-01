@@ -9,7 +9,7 @@ N = 80
 log.info('Making '+str(N)+' frames')
 for i in tqdm(range(N)):
     xp, yp, zp = phantoms.sphere_spiral(i/(N-1))
-    obj = R3S2toR.xyzj_list([0,0,0.1*i,xp,yp,zp], shape=[10,10,4],
+    obj = R3S2toR.xyzj_list([0,0,0.1*i,xp,yp,zp], shape=[10,10,4])
                               xlabel='10$\\times$10$\\times$4 $\mu$m${}^3$', title='Single dipole radiator')
     obj.build_actors()
 

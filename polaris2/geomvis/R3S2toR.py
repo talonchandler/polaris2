@@ -35,7 +35,7 @@ class xyzj_list:
         # Add double arrows for single dipole
         if self.data_j.shape[1] == 3:
             for i in range(self.M):
-                utilvtk.draw_double_arrow(self.ren, self.data_xyz[i], self.data_j[i])
+                utilvtk.draw_double_arrow(self.ren, self.data_xyz[i], self.rad_scale*self.data_j[i])
         # Add spherical function for ensemble
         else:
             radii = self.data_j*self.rad_scale/np.max(self.data_j)
@@ -63,16 +63,23 @@ class xyzj_list:
         ax[1].axis('off')
 
     def to_xyzJ_list(self, Jmax=15):
-        N = self.data_j.shape[-1]
-        B = utilsh.calcB(N, Jmax)
-        data_J = np.einsum('ij,ki->kj', B, self.data_j)
+        if self.data_j.shape[1] == 3: # For single dipoles
+            data_J = np.zeros((1, Jmax))
+            t, p = utilsh.xyz2tp(*self.data_j[0])
+            for i in range(Jmax):
+                l, m = utilsh.j2lm(i)
+                data_J[0,i] = utilsh.spZnm(l, m, t, p)
+        else: # For ensembles
+            N = self.data_j.shape[-1]
+            B = utilsh.calcB(N, Jmax)
+            data_J = np.einsum('ij,ki->kj', B, self.data_j)
         return xyzJ_list(self.data_xyz, data_J, shape=self.shape, title=self.title)
 
-    def to_R3toR3_xyz(self, shape):
-        xyz = utilsh.fibonacci_sphere(self.data_j.shape[1], xyz=True)
+    def to_R3toR3_xyz(self, N=2**10):
+        xyz = utilsh.fibonacci_sphere(N, xyz=True)
         max_indices = np.argmax(self.data_j, axis=1)
         xyz_max = np.einsum('ij,i->ij', xyz[max_indices], np.max(self.data_j, axis=-1))
-        return R3toR3.xyz_list(self.data_xyz, xyz_max, shape=shape,
+        return R3toR3.xyz_list(self.data_xyz, xyz_max, shape=self.shape,
                                xlabel=self.xlabel, title='Peaks')
 
     def to_xyzJ(self, xyzJ_shape=[10,10,10,6], vox_dims=[.1,.1,.1]):        
@@ -195,10 +202,11 @@ class xyzJ:
         # Draw odfs
         centers = (ijk - 0.5*self.npx + 0.5)*self.vox_dims # ijk2xyz
         radii = np.einsum('ij,kj->ki', self.B, J_list)
-        radii *= self.rad_scale*self.skip_n*np.max(self.vox_dims)/(np.max(radii))
+        radii *= self.rad_scale*self.skip_n*np.min(self.vox_dims)/(np.max(radii))
         utilvtk.draw_sphere_field(self.ren, centers, radii)
 
         # Draw extras
+        utilvtk.draw_origin_dot(self.ren)
         utilvtk.draw_outer_box(self.ren, *self.shape)
         utilvtk.draw_axes(self.ren, *self.shape)
         
@@ -232,7 +240,7 @@ class xyzJ:
     def to_R3toR3_xyz(self, N=2**10):
         xyzJ_list = self.to_xyzJ_list()
         xyzj_list = xyzJ_list.to_xyzj_list(N)
-        return xyzj_list.to_R3toR3_xyz(shape=self.shape)
+        return xyzj_list.to_R3toR3_xyz()
 
     def to_R3toR_xyz(self):
         return R3toR.xyz(self.data[:,:,:,0],
@@ -242,6 +250,7 @@ class xyzJ:
     def to_tiff(self, filename):
         utilmpl.mkdir(filename)
         log.info('Writing '+filename)
+        
         with tifffile.TiffWriter(filename, imagej=True) as tif:
             d = np.moveaxis(self.data, [2, 3, 1, 0], [0, 1, 2, 3]).astype(np.float32)
             tif.save(d[None,:,:,:,:],

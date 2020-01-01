@@ -134,6 +134,7 @@ class FourF:
     # Input: R3S2toR.xyzj_list with a single entry
     # Output: R2toC2.xy object
     def xyzj_single_to_xye_det(self, dip):
+        import pdb; pdb.set_trace() 
         dip_pos = dip.data_xyz[0]
         dip_orientation = dip.data_j[0]
         
@@ -389,11 +390,12 @@ class FourFLF:
                         plotfov=[-self.fourf.plotfov/2, self.fourf.plotfov/2])
 
     # Generates the irradiance pattern on a lfcamera from a dense xyzJ array.
+    # Alternate name for xyzJ_to_xy_det    
     # This is a faster path than xyzJ_list_to_xy_det
     # Input: R3S2toR.xyzJ
     # Output: R2toR.xy object
-    def xyzJ_to_xy_det(self, xyzJ):
-        
+    def fwd(self, xyzJ):
+        log.info('Applying forward operator')
         # Reshape xyzJ to uvstzJ
         uu, vv, ss, tt, zz, jj, vp, tp = self.H_UvStzJ_to_UvSt_det.shape
         uvstzJ_shape = (uu, vp, uu, tp, zz, jj)
@@ -420,7 +422,8 @@ class FourFLF:
                         fov=[-self.fourf.fov/2, self.fourf.fov/2],
                         plotfov=[-self.fourf.fov/2, self.fourf.fov/2])
 
-    def precompute_UvStzJ_to_UvSt_det(self, input_shape, input_vox_dims):
+    def precompute_fwd(self, input_shape, input_vox_dims):
+        # Precompute UvStzJ_to_UvSt_det
         uu, vv, ss, tt, zz, jj = input_shape
         matrix_shape = (uu, self.ulenpx, int(np.floor(ss/2 + 1)), self.ulenpx, zz, jj, vv, tt)
         self.H_UvStzJ_to_UvSt_det = np.zeros(matrix_shape, dtype=np.complex64)
@@ -440,14 +443,37 @@ class FourFLF:
 
                     self.H_UvStzJ_to_UvSt_det[:,:,:,:,k,:6,i,j] = entry
 
-    # IN PROGRESS
     # Generates the pseudoinverse solution
-    # Requires self.H_UvStzJ_to_UvSt_det to have been precomputed
+    # Requires self.Hp and self.H_UvStzJ_to_UvSt_det to have been precomputed
     # Input: R3S2toR.xy
     # Output: R2toR.xyzJ object
     def pinv(self, xy, out_vox_dims=[.1,.1,.1]):
+        log.info('Applying pseudoinverse operator')
+        U, v, S, t, z, J, vp, tp = self.H_UvStzJ_to_UvSt_det.shape
+        
+        # Resort and FT data
+        uvst = xy.data.reshape((U,v,U,t)).astype('float32')
+        uvst_shift = np.fft.ifftshift(uvst, axes=(0,2))
+        UvSt_shift = np.fft.rfftn(uvst_shift, axes=(0,2))
 
-        # Compute SVD (for precomputation later)
+        # Apply pinv operator
+        UvStzJ_shift = np.einsum('ikjlopqr,ijkl->iokpqr', self.Hp, UvSt_shift)
+        # UvStzJ_shift = np.einsum('ikmnopqr,ikmn,ikjlmn,ijkl->iokpqr', VVall, 1/SSall, UUall, UvSt_shift)
+
+        # FFT UvSt to uvst (with Fourier deshifting)
+        uvstzJ_shift = np.fft.irfftn(UvStzJ_shift, s=(U,U), axes=(0,2))
+        uvstzJ = np.fft.fftshift(uvstzJ_shift, axes=(0,2))
+
+        # Reshape uvst to xy
+        xyzJ = uvstzJ.reshape((U*vp, U*vp, z, J))
+        # xyzJ = np.flip(xyzJ, axis=2) # Kludge for now. I think uvst is accidentally transposed.
+        
+        return R3S2toR.xyzJ(xyzJ, vox_dims=out_vox_dims, title='Reconstructed object')
+
+    # Precompute the pseudoinverse matrix
+    # Requires self.H_UvStzJ_to_UvSt_det to have been precomputed
+    def precompute_pinv(self, eta=0):
+        log.info('Computing SVD')        
         U, v, S, t, z, J, vp, tp = self.H_UvStzJ_to_UvSt_det.shape
         sort = np.moveaxis(self.H_UvStzJ_to_UvSt_det, [0,2,1,3,6,7,4,5], [0,1,2,3,4,5,6,7])
         InvOI = sort.reshape((U*S, v*t, vp*tp*z*J))
@@ -456,7 +482,6 @@ class FourFLF:
         UU = np.zeros((Inv, K, O), dtype=np.complex64)
         SS = np.zeros((Inv, K), dtype=np.float32)
         VV = np.zeros((Inv, K, I), dtype=np.complex64)
-        log.info('Computing SVD')
         for i in tqdm(range(Inv)):
             uu, ss, vv = np.linalg.svd(InvOI[i,:,:], full_matrices=False)
             UU[i,:] = uu            
@@ -467,22 +492,7 @@ class FourFLF:
         SSall = SS.reshape((U,S,v,t))
         VVall = VV.reshape((U,S,v,t,vp,tp,z,J))
 
-        # Resort and FT data
-        uvst = xy.data.reshape((U,v,U,t)).astype('float32')
-        uvst_shift = np.fft.ifftshift(uvst, axes=(0,2))
-        UvSt_shift = np.fft.rfftn(uvst_shift, axes=(0,2))
-
         # Reconstruct
-        log.info('Applying pseudoinverse operator')
-        UvStzJ_shift = np.einsum('ikmnopqr,ikmn,ikjlmn,ijkl->iokpqr', VVall, 1/SSall, UUall, UvSt_shift)
-
-        # FFT UvSt to uvst (with Fourier deshifting)
-        uvstzJ_shift = np.fft.irfftn(UvStzJ_shift, s=(U,U), axes=(0,2))
-        uvstzJ = np.fft.fftshift(uvstzJ_shift, axes=(0,2))
-
-        # Reshape uvst to xy
-        xyzJ = uvstzJ.reshape((U*vp, U*vp, z, J))
-
-        xyzJ = np.flip(xyzJ, axis=2) # Kludge for now. I think uvst is accidentally transposed.
-        
-        return R3S2toR.xyzJ(xyzJ, vox_dims=out_vox_dims, title='Reconstructed object')
+        log.info('Computing pseduoinverse operator')
+        SSreg = np.where(SSall > 1e-7, SSall/(SSall**2 + eta), 0) # Regularize
+        self.Hp = np.einsum('ikmnopqr,ikmn,ikjlmn->ikjlopqr', VVall, SSreg, UUall)
