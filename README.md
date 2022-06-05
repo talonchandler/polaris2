@@ -10,6 +10,7 @@ git clone https://github.com/talonchandler/polaris2.git
 cd polaris2
 conda env create -f environment.yml
 conda activate polaris2
+pip install -e .
 ```
 
 Run the example:
