@@ -12,3 +12,5 @@
 *.png
 *.pickle
 examples/*/*/*
+*.egg-info
+*.PKG-INFO
