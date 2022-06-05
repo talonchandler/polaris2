@@ -134,7 +134,6 @@ class FourF:
     # Input: R3S2toR.xyzj_list with a single entry
     # Output: R2toC2.xy object
     def xyzj_single_to_xye_det(self, dip):
-        import pdb; pdb.set_trace() 
         dip_pos = dip.data_xyz[0]
         dip_orientation = dip.data_j[0]
         
